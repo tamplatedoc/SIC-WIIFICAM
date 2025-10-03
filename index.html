@@ -1,244 +1,48 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32-CAM Control Dashboard</title>
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    
-    <!-- SweetAlert2 for notifications -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
-    <!-- Custom Styles -->
-    <link rel="stylesheet" href="style.css"> 
-    
-    <style>
-        /* Gaya tambahan untuk responsif dan tampilan kamera */
-        .dashboard-container {
-            min-height: calc(100vh - 120px); /* Memastikan konten cukup panjang */
-        }
-        .camera-container {
-            position: relative; /* Penting untuk posisi absolut loading spinner */
-            overflow: hidden;
-            border-radius: 0 0 0.375rem 0.375rem; /* Sesuai dengan card-body */
-            /* Rasio aspek 4:3 untuk video feed */
-            aspect-ratio: 4 / 3; 
-        }
-        .camera-container video {
-            display: block;
-            object-fit: cover;
-            height: 100%;
-            transition: transform 0.3s ease, filter 0.3s ease; /* Transisi untuk zoom/filter */
-            cursor: pointer;
-        }
-        
-        /* Loading Spinner Overlay */
-        #loadingSpinner {
-            /* z-20 (dikonversi ke index yang tinggi) */
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.7); /* bg-dark/70 */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1050; /* Z-index tinggi */
-        }
-        .hidden {
-            display: none !important;
-        }
-
-        /* Status Indicator (Connected/Disconnected) */
-        .status-indicator {
-            z-index: 1000;
-        }
-        .status-indicator.connected {
-            background-color: #198754 !important; /* Hijau */
-        }
-        .status-indicator.disconnected {
-            background-color: #dc3545 !important; /* Merah */
-        }
-
-        /* Custom Header Background (Optional but nice for color) */
-        .custom-header-bg {
-            background-color: #0d6efd !important; /* Warna Primary Bootstrap */
-        }
-        .custom-header-bg-secondary {
-            background-color: #6c757d !important; /* Warna Secondary Bootstrap */
-        }
-
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIC-WIIFICAM</title>
+  <link href="style.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 </head>
 <body>
+  <div class="container">
+    <header>
+      <h1>SIC-WIIFICAM Dashboard</h1>
+      <button id="darkModeToggle" class="btn btn-dark">
+        <i class="fas fa-moon"></i> Dark Mode
+      </button>
+    </header>
 
-    <nav class="navbar navbar-expand-lg sticky-top shadow-sm bg-body-tertiary">
-        <div class="container-fluid px-4">
-            <a class="navbar-brand fw-bold text-primary" href="#">
-                <i class="fas fa-video me-2"></i>ESP32-CAM Dashboard
-            </a>
-            
-            <div class="d-flex align-items-center">
-                <button class="btn btn-sm btn-outline-secondary me-2" id="darkModeToggle" onclick="toggleDarkMode()">
-                    <i class="fas fa-moon"></i> 
-                    <span class="d-none d-sm-inline ms-1">Dark Mode</span>
-                </button>
-            </div>
-        </div>
-    </nav>
+    <!-- Video Stream -->
+    <section class="video-section">
+      <div class="video-container">
+        <img id="camera" src="" alt="ESP32-CAM Stream" />
+        <div id="loadingSpinner" class="spinner hidden"></div>
+      </div>
+      <div class="controls">
+        <button onclick="startStream()" class="btn btn-success"><i class="fas fa-play"></i> Start</button>
+        <button onclick="stopStream()" class="btn btn-danger"><i class="fas fa-stop"></i> Stop</button>
+        <button id="rebootBtn" class="btn btn-warning"><i class="fas fa-sync"></i> Reboot</button>
+        <button id="flashLed" class="btn btn-info"><i class="fas fa-bolt"></i> Flash</button>
+      </div>
+    </section>
 
-    <div class="container-fluid py-4 dashboard-container">
-        <div class="row g-4">
-            
-            <div class="col-lg-8">
-                
-                <div class="card shadow-lg mb-4">
-                    <div class="card-header text-white fw-bold custom-header-bg">
-                        Live Camera Feed
-                    </div>
-                    <div class="card-body p-0 camera-body position-relative">
-                        
-                        <div class="camera-container text-center bg-black rounded-top-0">
-                            <!-- 1. Video Element -->
-                            <video id="camera" class="w-100" autoplay muted playsinline></video>
-                            
-                            <!-- 2. Loading Spinner (Tambahan Baru) -->
-                            <div id="loadingSpinner" class="hidden absolute inset-0 bg-dark/70 flex justify-center items-center z-20">
-                                <div class="text-white text-center">
-                                    <!-- Bootstrap Spinner Component -->
-                                    <div class="spinner-border text-info" role="status" style="width: 3rem; height: 3rem;">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-3 text-sm">Menghubungkan ke ESP32-CAM...</p>
-                                </div>
-                            </div>
-                            
-                            <!-- 3. Status Indicator -->
-                            <span id="status" class="status-indicator badge text-bg-danger position-absolute top-0 end-0 m-3">
-                                <i class="fas fa-times-circle"></i> Disconnected
-                            </span>
-                            
-                            <!-- 4. CTA Overlay -->
-                            <div class="cta-overlay position-absolute top-0 start-0 w-100 h-100 bg-black bg-opacity-75 d-flex justify-content-center align-items-center z-10">
-                                <button class="btn btn-success btn-lg" onclick="startStream()">
-                                    <i class="fas fa-play me-2"></i> Start Camera Stream
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="card-footer d-flex flex-wrap justify-content-center gap-2 p-3">
-                        <button class="btn btn-primary btn-sm" onclick="togglePlay()"><i class="fas fa-pause me-1"></i> Play/Pause</button>
-                        <button class="btn btn-danger btn-sm" onclick="stopStream()"><i class="fas fa-stop me-1"></i> Stop Stream</button>
-                        <button class="btn btn-warning btn-sm" onclick="zoomIn()"><i class="fas fa-search-plus"></i> Zoom In</button>
-                        <button class="btn btn-warning btn-sm" onclick="zoomOut()"><i class="fas fa-search-minus"></i> Zoom Out</button>
-                        <button class="btn btn-success btn-lg fw-bold" onclick="takeSnapshot()"><i class="fas fa-camera me-1"></i> Capture</button>
-                    </div>
-                </div>
+    <!-- Device Info -->
+    <section class="status-section">
+      <h2><i class="fas fa-info-circle"></i> Device Status</h2>
+      <ul class="list-group">
+        <li class="list-group-item"><strong>SSID:</strong> <span id="info-ssid">N/A</span></li>
+        <li class="list-group-item"><strong>RSSI:</strong> <span id="info-rssi">N/A</span></li>
+        <li class="list-group-item"><strong>IP:</strong> <span id="info-ip">N/A</span></li>
+        <li class="list-group-item"><strong>Battery:</strong> <span id="info-battery">N/A</span></li>
+      </ul>
+    </section>
+  </div>
 
-                <div class="card shadow">
-                    <div class="card-header text-white fw-bold custom-header-bg-secondary">
-                        <i class="fas fa-images me-2"></i> Snapshot Gallery
-                    </div>
-                    <div class="card-body">
-                        <div id="gallery-grid" class="row row-cols-2 row-cols-md-4 g-3">
-                            </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-lg-4">
-                
-                <div class="card shadow mb-4">
-                    <div class="card-header fw-bold bg-body-tertiary">
-                        <i class="fas fa-chart-bar me-2"></i> Device Status
-                    </div>
-                    <div class="card-body">
-                        <div class="device-info list-group list-group-flush">
-                            <!-- ID ini akan diupdate oleh script.js -->
-                             <li class="list-group-item bg-transparent">
-                                <strong><i class="fas fa-tachometer-alt fa-fw"></i> Live FPS:</strong> <span id="info-fps" class="float-end text-primary fw-bold">0 FPS</span>
-                            </li>
-                            <li class="list-group-item bg-transparent">
-                                <strong><i class="fas fa-wifi fa-fw"></i> WiFi SSID:</strong> <span id="info-ssid" class="float-end text-muted">N/A</span>
-                            </li>
-                            <li class="list-group-item bg-transparent">
-                                <strong><i class="fas fa-laptop-code fa-fw"></i> IP Address:</strong> <span id="info-ip" class="float-end text-muted">192.168.1.77</span>
-                            </li>
-                            <li class="list-group-item bg-transparent">
-                                <strong><i class="fas fa-signal fa-fw"></i> Signal Strength:</strong> <span id="info-rssi" class="float-end text-muted">N/A</span>
-                            </li>
-                            <li class="list-group-item bg-transparent">
-                                <strong><i class="fas fa-battery-three-quarters fa-fw"></i> Battery:</strong> <span id="info-battery" class="float-end text-success fw-bold">AC Power</span>
-                            </li>
-                        </div>
-                    </div>
-                    <div class="card-footer p-3">
-                        <button class="btn btn-danger w-100" onclick="confirmReboot()">
-                            <i class="fas fa-redo-alt me-1"></i> Reboot Device
-                        </button>
-                    </div>
-                </div>
-
-                <div class="card shadow">
-                    <div class="card-header fw-bold bg-body-tertiary">
-                        <i class="fas fa-sliders-h me-2"></i> Camera Settings
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="resolution" class="form-label fw-bold">Resolution:</label>
-                            <select id="resolution" class="form-select" onchange="changeResolution(this.value)">
-                                <option value="320x240">320 x 240 (QVGA)</option>
-                                <option value="640x480" selected>640 x 480 (VGA)</option>
-                                <option value="1280x720">1280 x 720 (HD)</option>
-                                <option value="1600x1200">1600 x 1200 (UXGA)</option>
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="quality" class="form-label fw-bold">JPEG Quality (0-63): <span id="qualityValue" class="float-end text-primary">10</span></label>
-                            <input type="range" class="form-range" id="quality" min="0" max="63" value="10" oninput="updateRangeValue('quality')" onchange="sendCommand('quality', this.value, true)">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="brightness" class="form-label fw-bold">Brightness (-2 s/d 2): <span id="brightnessValue" class="float-end text-primary">0</span></label>
-                            <input type="range" class="form-range" id="brightness" min="-2" max="2" value="0" oninput="updateRangeValue('brightness')" onchange="sendCommand('brightness', this.value, true)">
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="contrast" class="form-label fw-bold">Contrast (-2 s/d 2): <span id="contrastValue" class="float-end text-primary">0</span></label>
-                            <input type="range" class="form-range" id="contrast" min="-2" max="2" value="0" oninput="updateRangeValue('contrast')" onchange="sendCommand('contrast', this.value, true)">
-                        </div>
-
-                        <div class="d-grid mb-3">
-                            <button class="btn btn-outline-info" onclick="toggleNightMode()">
-                                <i class="fas fa-lightbulb me-1"></i> Toggle Night Mode
-                            </button>
-                        </div>
-                        
-                        <div class="d-grid">
-                            <button class="btn btn-warning" id="flashLedBtn" onclick="toggleFlashLed()">
-                                <i class="fas fa-bolt me-1"></i> Turn ON Flash LED
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <footer class="text-center py-3 border-top mt-5 bg-body-tertiary text-muted">
-        <div class="container">
-            <p class="mb-0">ESP32-CAM Control Panel &copy; 2025 | Built with <i class="fas fa-heart text-danger"></i> & Bootstrap 5 By "Farrel"</p>
-        </div>
-    </footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="script.js"></script>
+  <script src="script.js?v=3"></script>
 </body>
 </html>
+
