@@ -1,0 +1,179 @@
+/* Custom Styles for ESP32-CAM Dashboard */
+
+/* 1. Global & Smooth Transition Setup */
+:root {
+    --neon-green: #39ff14; /* Warna hijau neon yang cerah */
+    --dark-bg: #0d1117;    /* Hampir hitam, ala GitHub dark */
+    --dark-card: #161b22;  /* Slightly lighter card background */
+}
+
+body {
+    /* Menambahkan transisi untuk latar belakang, warna teks, dan border */
+    transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+/* Tambahkan transisi ke elemen Bootstrap utama */
+.navbar, .card, .list-group-item, .form-select, .form-control, footer {
+    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+.dashboard-container {
+    max-width: 1600px;
+}
+
+/* 2. Custom Light Mode (Default Bootstrap) */
+.custom-header-bg {
+    background-color: var(--bs-primary) !important;
+}
+.custom-header-bg-secondary {
+    background-color: var(--bs-secondary) !important;
+}
+
+
+/* 3. NEON DARK MODE OVERRIDES (data-bs-theme="dark") */
+html[data-bs-theme="dark"] {
+    color-scheme: dark; /* Penting untuk input dan scrollbar */
+}
+html[data-bs-theme="dark"] body {
+    background-color: var(--dark-bg) !important;
+    color: var(--bs-white) !important;
+}
+
+/* Navbar */
+html[data-bs-theme="dark"] .navbar {
+    background-color: var(--dark-card) !important;
+    border-bottom: 1px solid var(--neon-green);
+    box-shadow: 0 2px 5px rgba(57, 255, 20, 0.2); /* Bayangan neon */
+}
+html[data-bs-theme="dark"] .navbar-brand {
+    color: var(--neon-green) !important;
+}
+
+/* Cards */
+html[data-bs-theme="dark"] .card {
+    background-color: var(--dark-card) !important;
+    border-color: #2a333f;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Card Headers (Aksen Neon) */
+html[data-bs-theme="dark"] .card-header {
+    background-color: #1f2733 !important; /* Warna header lebih gelap */
+    color: var(--neon-green) !important;
+    border-bottom: 1px solid var(--neon-green);
+    font-weight: bold;
+}
+/* Override untuk card Live Camera (lebih menonjol) */
+html[data-bs-theme="dark"] .card-header.custom-header-bg {
+    background-color: var(--dark-bg) !important;
+    border-bottom: 2px solid var(--neon-green);
+    color: var(--neon-green) !important;
+}
+html[data-bs-theme="dark"] .card-header.custom-header-bg-secondary {
+    background-color: #1f2733 !important;
+    border-bottom: 2px solid var(--neon-green);
+    color: var(--neon-green) !important;
+}
+
+
+/* List Group Items (Device Info) */
+html[data-bs-theme="dark"] .list-group-item {
+    background-color: transparent !important;
+    border-color: #2a333f;
+    color: var(--bs-light) !important;
+}
+html[data-bs-theme="dark"] .text-muted {
+    color: #909ba8 !important; /* Warna teks info yang lebih terang */
+}
+
+/* Forms & Selects */
+html[data-bs-theme="dark"] .form-select,
+html[data-bs-theme="dark"] .form-control {
+    background-color: #1f2733;
+    border-color: #2a333f;
+    color: var(--bs-light);
+}
+
+/* Footer */
+html[data-bs-theme="dark"] footer {
+    background-color: var(--dark-card) !important;
+    border-top: 1px solid var(--neon-green);
+    color: var(--bs-light) !important;
+}
+
+/* Tombol (Button Overrides) */
+html[data-bs-theme="dark"] .btn-outline-secondary {
+    color: var(--neon-green);
+    border-color: var(--neon-green);
+}
+html[data-bs-theme="dark"] .btn-outline-secondary:hover {
+    background-color: var(--neon-green);
+    color: var(--dark-bg);
+}
+
+
+/* 4. Camera Section Styling */
+.camera-body {
+    min-height: 400px;
+}
+.camera-container {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    position: relative;
+    overflow: hidden;
+}
+.camera-container video {
+    object-fit: cover;
+    min-height: 100%;
+    transform: scale(1);
+    transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+/* Status Indicator */
+.status-indicator {
+    font-weight: bold;
+    z-index: 10;
+    transition: background-color 0.3s;
+}
+.status-indicator.connected {
+    background-color: var(--neon-green) !important;
+    color: var(--dark-bg) !important;
+}
+.status-indicator.disconnected {
+    background-color: var(--bs-danger) !important;
+}
+
+/* CTA Overlay */
+.cta-overlay {
+    z-index: 20;
+    transition: opacity 0.3s;
+}
+.cta-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+.camera-container:has(.cta-overlay:not(.hidden)) video {
+    filter: brightness(0.5); 
+}
+
+/* 5. Gallery Styling */
+#gallery-grid img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+#gallery-grid img:hover {
+    transform: scale(1.05);
+}
+
+
+/* 6. Responsive Adjustment (Opsional, Bootstrap sudah bagus) */
+@media (max-width: 991px) {
+    .camera-body {
+        min-height: 300px;
+    }
+}
