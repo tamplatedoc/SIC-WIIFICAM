@@ -17,10 +17,11 @@ let streamActive = false;
 let flashOn = false;
 
 // ===== STREAM CAMERA =====
-async function startStream() {
+function startStream() {
   if (streamActive) return;
   loadingSpinner.classList.remove('hidden');
 
+  // arahkan ke stream ESP32-CAM
   video.src = `http://${ESP_IP}:81/stream`;
 
   video.onload = () => {
@@ -80,7 +81,12 @@ flashLed.addEventListener("click", () => {
 // Reboot device
 rebootBtn.addEventListener("click", async () => {
   if (confirm("Yakin mau reboot ESP32-CAM?")) {
-    await fetch(`http://${ESP_IP}/reboot`);
+    try {
+      await fetch(`http://${ESP_IP}/reboot`);
+      alert("ESP32-CAM sedang reboot...");
+    } catch (err) {
+      console.error("Gagal reboot:", err);
+    }
   }
 });
 
@@ -92,4 +98,3 @@ darkModeToggle.addEventListener("click", () => {
 // ===== AUTO REFRESH STATUS =====
 setInterval(fetchDeviceStatus, 5000);
 fetchDeviceStatus();
-
