@@ -20,7 +20,7 @@ let streamActive = false;
 let zoomLevel = 1;
 let nightMode = false;
 let flashLedState = 0; // 0=OFF, 1=ON
-const ESP_IP = '192.168.43.147:81'; // Pastikan ini adalah IP ESP32-CAM Anda yang benar
+const ESP_IP = '192.168.43.147'; // Pastikan ini adalah IP ESP32-CAM Anda yang benar
 
 // Variabel FPS Counter
 let lastTime = 0;
