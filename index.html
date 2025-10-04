@@ -1,12 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>ESP32-CAM Stream</title>
+    <meta charset="UTF-8">
+    <title>ESP32-CAM WebSocket Stream</title>
 </head>
 <body>
-  <h2>Live Camera Stream</h2>
-  <!-- Ganti IP dengan IP ESP32-CAM -->
-  <img src="http://192.168.43.147:80/stream" alt="ESP32-CAM Stream" style="width:640px;height:auto;"/>
+    <h1>Live Stream dari ESP32-CAM via Railway</h1>
+    <img id="videoStream" style="width: 640px; border: 2px solid #ccc;" alt="Live Video Stream">
+    <p id="status">Status: Menghubungkan...</p>
+
+    <script>
+        // ========== KONFIGURASI SERVER RAILWAY ==========
+        // Gunakan WSS untuk WebSocket Secure
+        const RAILWAY_URL = "wss://esp32-webrtc-server-production.up.railway.app";
+        const videoElement = document.getElementById('videoStream');
+        const statusElement = document.getElementById('status');
+        let currentObjectURL = null;
+
+        function connectWebSocket() {
+            statusElement.textContent = "Status: Mencoba Menghubungkan...";
+            const socket = new WebSocket(RAILWAY_URL);
+
+            socket.onopen = () => {
+                statusElement.textContent = "Status: TERHUBUNG. Menunggu Frame...";
+                console.log("Koneksi WebSocket berhasil.");
+            };
+
+            socket.onmessage = (event) => {
+                // Periksa apakah data yang diterima adalah data biner (frame JPEG)
+                if (event.data instanceof Blob) {
+                    // 1. Bersihkan URL Objek lama untuk membebaskan memori
+                    if (currentObjectURL) {
+                        URL.revokeObjectURL(currentObjectURL);
+                    }
+                    
+                    // 2. Buat URL Objek baru dari data gambar
+                    currentObjectURL = URL.createObjectURL(event.data);
+                    
+                    // 3. Tampilkan gambar
+                    videoElement.src = currentObjectURL;
+
+                    statusElement.textContent = "Status: Streaming Aktif";
+                }
+            };
+
+            socket.onclose = (event) => {
+                statusElement.textContent = "Status: Terputus. Mencoba menghubungkan kembali dalam 5 detik...";
+                console.log("WebSocket terputus:", event.reason);
+                setTimeout(connectWebSocket, 5000); // Coba koneksi ulang
+            };
+
+            socket.onerror = (error) => {
+                statusElement.textContent = "Status: Error. Periksa konsol.";
+                console.error("WebSocket Error:", error);
+            };
+        }
+
+        // Mulai koneksi
+        connectWebSocket();
+    </script>
 </body>
 </html>
