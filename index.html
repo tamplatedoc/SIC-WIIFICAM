@@ -1,91 +1,42 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>ESP32-CAM Control</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #121212; color: #fff; text-align: center; }
-    #camera { width: 80%; max-width: 640px; margin: 20px auto; border: 2px solid #444; border-radius: 8px; }
-    .controls { margin-top: 20px; }
-    .controls button, .controls input { margin: 5px; padding: 10px; border-radius: 6px; border: none; }
-    .controls button { background: #1e88e5; color: white; cursor: pointer; }
-    .controls button:hover { background: #1565c0; }
-  </style>
+  <title>ESP32 WebRTC Stream</title>
 </head>
 <body>
-  <h1>ESP32-CAM Live Stream</h1>
- 
- <iframe id="camera" src="http://192.168.43.147:81/stream" 
-        width="640" height="480" frameborder="0"></iframe>
-
-
-  <div class="controls">
-    <button onclick="toggleFlash(1)">Flash ON</button>
-    <button onclick="toggleFlash(0)">Flash OFF</button>
-    <br>
-    <label>Brightness:</label>
-    <input type="range" min="-2" max="2" value="0" onchange="setControl('brightness', this.value)">
-    <br>
-    <label>Contrast:</label>
-    <input type="range" min="-2" max="2" value="0" onchange="setControl('contrast', this.value)">
-    <br>
-    <label>Quality:</label>
-    <input type="range" min="10" max="63" value="10" onchange="setControl('quality', this.value)">
-    <br>
-    <label>Resolution:</label>
-    <select onchange="setControl('framesize', this.value)">
-      <option value="8">VGA (640x480)</option>
-      <option value="10">SVGA (800x600)</option>
-      <option value="11">XGA (1024x768)</option>
-      <option value="13">SXGA (1280x1024)</option>
-      <option value="14">UXGA (1600x1200)</option>
-    </select>
-    <br><br>
-    <button onclick="reboot()">Reboot ESP</button>
-  </div>
-
-  <div id="statusBox"></div>
+  <h2>ESP32-CAM WebRTC Stream</h2>
+  <video id="video" autoplay playsinline></video>
 
   <script>
-    const baseUrl = "http://192.168.43.147";
+    const video = document.getElementById('video');
+    const ws = new WebSocket("esp32-webrtc-server-production.up.railway.app");
 
-    async function setControl(variable, value) {
-      try {
-        await fetch(`${baseUrl}/control?var=${variable}&val=${value}`);
-        console.log(`Set ${variable} = ${value}`);
-      } catch (err) {
-        console.error("Error:", err);
+    const pc = new RTCPeerConnection();
+
+    pc.ontrack = (event) => {
+      video.srcObject = event.streams[0];
+    };
+
+    ws.onmessage = async (event) => {
+      const data = JSON.parse(event.data);
+      if(data.sdp){
+        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        if(data.sdp.type === "offer"){
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          ws.send(JSON.stringify({ sdp: pc.localDescription }));
+        }
       }
-    }
-
-    async function toggleFlash(state) {
-      await setControl("flash", state);
-    }
-
-    async function reboot() {
-      await fetch(`${baseUrl}/reboot`);
-      alert("ESP32-CAM rebooting...");
-    }
-
-    async function updateStatus() {
-      try {
-        let res = await fetch(`${baseUrl}/status`);
-        let data = await res.json();
-        document.getElementById("statusBox").innerHTML = `
-          <p><b>WiFi:</b> ${data.ssid}</p>
-          <p><b>RSSI:</b> ${data.rssi} dBm</p>
-          <p><b>IP:</b> ${data.ip}</p>
-        `;
-      } catch (err) {
-        console.error("Failed to get status");
+      if(data.ice){
+        try { await pc.addIceCandidate(data.ice); } catch(e) {}
       }
-    }
+    };
 
-    setInterval(updateStatus, 5000); // update tiap 5 detik
-    updateStatus();
+    pc.onicecandidate = (event) => {
+      if(event.candidate){
+        ws.send(JSON.stringify({ ice: event.candidate }));
+      }
+    };
   </script>
 </body>
 </html>
-
-
-
