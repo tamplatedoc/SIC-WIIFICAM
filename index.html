@@ -1,42 +1,12 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>ESP32 WebRTC Stream</title>
+  <meta charset="UTF-8">
+  <title>ESP32-CAM Stream</title>
 </head>
 <body>
-  <h2>ESP32-CAM WebRTC Stream</h2>
-  <video id="video" autoplay playsinline></video>
-
-  <script>
-    const video = document.getElementById('video');
-    const ws = new WebSocket("wss://your-server.up.railway.app");
-
-    const pc = new RTCPeerConnection();
-
-    pc.ontrack = (event) => {
-      video.srcObject = event.streams[0];
-    };
-
-    ws.onmessage = async (event) => {
-      const data = JSON.parse(event.data);
-      if(data.sdp){
-        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-        if(data.sdp.type === "offer"){
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          ws.send(JSON.stringify({ sdp: pc.localDescription }));
-        }
-      }
-      if(data.ice){
-        try { await pc.addIceCandidate(data.ice); } catch(e) {}
-      }
-    };
-
-    pc.onicecandidate = (event) => {
-      if(event.candidate){
-        ws.send(JSON.stringify({ ice: event.candidate }));
-      }
-    };
-  </script>
+  <h2>Live Camera Stream</h2>
+  <!-- Ganti IP dengan IP ESP32-CAM -->
+  <img src="http://192.168.43.147:80/stream" alt="ESP32-CAM Stream" style="width:640px;height:auto;"/>
 </body>
 </html>
