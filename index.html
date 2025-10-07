@@ -129,7 +129,7 @@
   document.getElementById('setStream').onclick = ()=> {
     const url = document.getElementById('streamUrl').value.trim();
     if (!url) return alert('Enter stream URL');
-    document.getElementById('streamHolder').innerHTML = `<img src=${url} style="width:100%">`;
+    document.getElementById('streamHolder').innerHTML = `<img src= "${url}" style="width:100%">`;
   }
 
 </script>
