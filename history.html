@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VBank - Histori</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="greeting">Histori Transaksi</div>
+            <div class="menu-icon disabled-link">
+                <span class="material-icons">notifications</span>
+            </div>
+        </header>
+
+        <div class="section">
+            <div class="tab-menu">
+                <button class="tab-button active">Semua</button>
+                <button class="tab-button">Debit</button>
+                <button class="tab-button">Kredit</button>
+            </div>
+
+            <div class="history-list" id="transaction_history">
+                <div class="history-item">
+                    <span class="material-icons income-icon">add_circle</span>
+                    <div class="details">
+                        <p class="title">Transfer Masuk</p>
+                        <p class="date">12 Okt 2025, 10:30</p>
+                    </div>
+                    <strong class="amount credit">+ Rp 50.000</strong>
+                </div>
+                
+                <div class="history-item">
+                    <span class="material-icons expense-icon">remove_circle</span>
+                    <div class="details">
+                        <p class="title">Pembayaran FIP - Toko IoT</p>
+                        <p class="date">11 Okt 2025, 15:15</p>
+                    </div>
+                    <strong class="amount debit">- Rp 150.000</strong>
+                </div>
+
+                <div class="history-item">
+                    <span class="material-icons expense-icon">remove_circle</span>
+                    <div class="details">
+                        <p class="title">Biaya Admin Bulanan</p>
+                        <p class="date">01 Okt 2025, 00:01</p>
+                    </div>
+                    <strong class="amount debit">- Rp 5.000</strong>
+                </div>
+            </div>
+        </div>
+
+        <nav class="navbar">
+            <a href="index.html" class="nav-item">
+                <span class="material-icons">home</span>
+                Beranda
+            </a>
+            <a href="history.html" class="nav-item active">
+                <span class="material-icons">history</span>
+                Histori
+            </a>
+            <a href="fip_enroll.html" class="nav-item main-action">
+                <span class="material-icons">qr_code_scanner</span>
+                FIP Pay
+            </a>
+            <a href="profile.html" class="nav-item">
+                <span class="material-icons">person</span>
+                Me
+            </a>
+        </nav>
+    </div>
+
+    </body>
+</html>
