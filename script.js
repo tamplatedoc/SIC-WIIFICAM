@@ -2,7 +2,7 @@
 
 // Konstanta untuk ID pengguna dummy (harus diganti dengan otentikasi sesi di produksi)
 const CURRENT_USER_ID = 'nasabah_001'; 
-const API_BASE_URL = ''; // Ganti dengan URL dasar API VBank Anda (misalnya http://localhost:3000)
+const API_BASE_URL = 'http://127.0.0.1:5000'; // Ganti dengan URL dasar API VBank Anda (misalnya http://localhost:3000)
 
 /**
  * Mengambil dan menampilkan data saldo dan laporan singkat dari backend.
