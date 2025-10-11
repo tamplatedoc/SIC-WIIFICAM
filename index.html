@@ -1,137 +1,64 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Smart Room Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body{font-family:system-ui,Arial;padding:16px;background:#f3f6fb;color:#111}
-    .card{background:#fff;padding:12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:12px}
-    .row{display:flex;gap:12px;flex-wrap:wrap}
-    .col{flex:1;min-width:240px}
-    .big{font-size:26px;font-weight:700}
-    label{display:block;margin:6px 0 3px;color:#333}
-    input[type=range]{width:100%}
-    .btn{background:#2563eb;color:#fff;padding:8px 12px;border-radius:6px;border:none;cursor:pointer}
-  </style>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <title>Pendaftaran FIP - VBank SoftGrammer</title>
 </head>
 <body>
-  <h2>Smart Room Dashboard</h2>
+    <h1>Pendaftaran FaceIDPay (FIP)</h1>
+    <video id="webcam" autoplay style="width:320px; height:240px;"></video><br>
+    <button onclick="captureAndEnroll()">Daftarkan Wajah FIP</button>
+    <p id="status_message"></p>
 
-  <div class="card row">
-    <div class="col">
-      <div class="big" id="temp">-- °C</div><div>Temperature</div>
-      <div class="big" id="hum">-- %</div><div>Humidity</div>
-    </div>
-    <div class="col">
-      <div class="big" id="light">-- %</div><div>Light</div>
-      <div class="big" id="people">--</div><div>People</div>
-    </div>
-    <div class="col">
-      <div id="rec"><strong>Recommendation:</strong> --</div>
-      <div id="explain" style="font-size:12px;color:#555"></div>
-      <div style="margin-top:8px"><button id="applyRec" class="btn">Apply Recommendation</button> <button id="rejectRec" class="btn" style="background:#ef4444">Reject</button></div>
-    </div>
-  </div>
+    <script>
+        const video = document.getElementById('webcam');
+        const statusMsg = document.getElementById('status_message');
+        
+        // Asumsi data user sudah didapat dari sesi
+        const CURRENT_USER_ID = 'nasabah_001'; 
+        const CURRENT_USER_NAME = 'Budi Santoso';
+        
+        // 1. Inisialisasi kamera web
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => video.srcObject = stream)
+            .catch(err => {
+                statusMsg.textContent = "Error: Gagal akses kamera. Pastikan browser Anda mengizinkan akses.";
+                console.error(err);
+            });
 
-  <div class="card row">
-    <div class="col">
-      <label>Camera stream (ngrok stream URL)</label>
-      <input id="streamUrl" placeholder="https://xxxxx.ngrok.io/stream" style="width:100%;padding:8px">
-      <button id="setStream" class="btn" style="margin-top:6px">Set Stream</button>
-      <div id="streamHolder" style="margin-top:8px;background:#000;color:#fff;height:220px;display:flex;align-items:center;justify-content:center">Stream preview</div>
-    </div>
-    <div class="col">
-      <label>Room area (m²)</label>
-      <input id="roomArea" type="number" min="1" placeholder="ex: 20" style="width:100%;padding:8px">
-      <button id="saveArea" class="btn" style="margin-top:8px">Save Room Area</button>
-
-      <label style="margin-top:12px">Fan speed: <span id="fanVal">0</span>%</label>
-      <input id="fan" type="range" min="0" max="100" value="0">
-      <label>Light intensity: <span id="lVal">0</span>%</label>
-      <input id="lightRange" type="range" min="0" max="100" value="0">
-      <button id="applyControls" class="btn" style="margin-top:8px">Apply Controls</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <pre id="log">Waiting for data...</pre>
-  </div>
-
-<script>
-  // CONFIG: paste your Firebase config below
-  const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    databaseURL: "https://your-project.firebaseio.com",
-    projectId: "your-project",
-    storageBucket: "your-project.appspot.com",
-    messagingSenderId: "SENDER_ID",
-    appId: "APP_ID"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-
-  // elements
-  const tempEl = document.getElementById('temp');
-  const humEl = document.getElementById('hum');
-  const lightEl = document.getElementById('light');
-  const peopleEl = document.getElementById('people');
-  const recEl = document.getElementById('rec');
-  const explainEl = document.getElementById('explain');
-  const logEl = document.getElementById('log');
-
-  const fan = document.getElementById('fan'); const fanVal = document.getElementById('fanVal');
-  const lightRange = document.getElementById('lightRange'); const lVal = document.getElementById('lVal');
-
-  // realtime listeners
-  db.ref('/sensor/current').on('value', snap => {
-    const v = snap.val() || {};
-    tempEl.innerText = v.temperature != null ? v.temperature.toFixed(1) + ' °C' : '-- °C';
-    humEl.innerText = v.humidity != null ? v.humidity.toFixed(0) + ' %' : '-- %';
-    lightEl.innerText = v.light_pct != null ? v.light_pct + ' %' : '-- %';
-  });
-  db.ref('/sensor/people').on('value', snap => { peopleEl.innerText = snap.val()!=null?snap.val():'--'; });
-  db.ref('/ai/recommendation').on('value', snap => {
-    const r = snap.val();
-    if (!r) return;
-    recEl.innerHTML = "<strong>Recommendation:</strong> " + (r.text || '');
-    explainEl.innerText = r.explain ? JSON.stringify(r.explain.details) : '';
-    logEl.innerText = JSON.stringify(r, null, 2);
-  });
-
-  fan.oninput = ()=>{ fanVal.innerText = fan.value; }
-  lightRange.oninput = ()=>{ lVal.innerText = lightRange.value; }
-
-  document.getElementById('applyControls').onclick = ()=> {
-    const data = {fan_speed: parseInt(fan.value), light_intensity: parseInt(lightRange.value)};
-    db.ref('/controls').set(data).then(()=> alert('Controls sent'));
-  }
-
-  document.getElementById('applyRec').onclick = ()=> {
-    db.ref('/ai/action').set({apply:true, by:'web'});
-    alert('Apply request sent');
-  }
-  document.getElementById('rejectRec').onclick = ()=> {
-    db.ref('/ai/action').set({apply:false, by:'web'});
-    alert('Rejected');
-  }
-
-  document.getElementById('saveArea').onclick = ()=> {
-    const a = parseFloat(document.getElementById('roomArea').value);
-    if (!a || a<=0) return alert('Enter valid area');
-    db.ref('/room').set({area_m2: a});
-    alert('Room area saved: ' + a + ' m2');
-  }
-
-  document.getElementById('setStream').onclick = ()=> {
-    const url = document.getElementById('streamUrl').value.trim();
-    if (!url) return alert('Enter stream URL');
-    document.getElementById('streamHolder').innerHTML = `<img src= "${url}" style="width:100%">`;
-  }
-
-</script>
+        function captureAndEnroll() {
+            statusMsg.textContent = "Sedang memproses... Harap tunggu.";
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Konversi gambar ke Base64
+            const faceImageData = canvas.toDataURL('image/jpeg').split(',')[1];
+            
+            // Kirim data ke Backend VBank
+            fetch('/api/enroll_face', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    userId: CURRENT_USER_ID, 
+                    faceImageData: faceImageData,
+                    nama: CURRENT_USER_NAME,
+                    data_diri: {alamat: 'Jl. Merdeka', usia: 25, gender: 'L'}
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    statusMsg.textContent = "✅ Pendaftaran FIP Berhasil!";
+                } else {
+                    statusMsg.textContent = "❌ Pendaftaran Gagal: " + data.message;
+                }
+            })
+            .catch(err => {
+                statusMsg.textContent = "❌ Gagal Terhubung ke Server VBank.";
+            });
+        }
+    </script>
 </body>
 </html>
