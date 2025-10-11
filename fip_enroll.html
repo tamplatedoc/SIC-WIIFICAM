@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VBank - Pendaftaran FIP</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body class="enroll-page">
+    <div class="container">
+        <div class="section">
+            <h2>Pendaftaran FaceIDPay (FIP)</h2>
+            <p class="description">Aktifkan FIP untuk pembayaran nirsentuh. Pastikan wajah Anda berada di dalam bingkai.</p>
+            
+            <div class="camera-frame">
+                <video id="webcam" autoplay muted></video>
+                <div class="overlay-circle"></div>
+            </div>
+
+            <button class="btn primary-btn" onclick="captureAndEnroll()">
+                <span class="material-icons">fingerprint</span>
+                Daftarkan Wajah Sekarang
+            </button>
+            
+            <p id="status_message" class="status-msg"></p>
+        </div>
+    </div>
+
+    <script src="fip_enroll.js"></script> 
+</body>
+</html>
