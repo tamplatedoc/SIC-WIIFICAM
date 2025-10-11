@@ -1,179 +1,284 @@
-/* Custom Styles for ESP32-CAM Dashboard */
+/* style.css */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
 
-/* 1. Global & Smooth Transition Setup */
 :root {
-    --neon-green: #39ff14; /* Warna hijau neon yang cerah */
-    --dark-bg: #0d1117;    /* Hampir hitam, ala GitHub dark */
-    --dark-card: #161b22;  /* Slightly lighter card background */
+    --primary-color: #007BFF;
+    --secondary-color: #28a745;
+    --background-color: #f8f9fa;
+    --card-background: #ffffff;
+    --text-color: #343a40;
+    --red-color: #dc3545;
+    --green-color: #28a745;
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Poppins', sans-serif;
 }
 
 body {
-    /* Menambahkan transisi untuk latar belakang, warna teks, dan border */
-    transition: background-color 0.4s ease, color 0.4s ease;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.6;
 }
 
-/* Tambahkan transisi ke elemen Bootstrap utama */
-.navbar, .card, .list-group-item, .form-select, .form-control, footer {
-    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+.container {
+    max-width: 450px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: var(--card-background);
+    min-height: 100vh;
+    box-shadow: var(--shadow);
+    position: relative; /* Untuk navbar di bawah */
 }
 
-.dashboard-container {
-    max-width: 1600px;
+/* HEADER */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
 }
 
-/* 2. Custom Light Mode (Default Bootstrap) */
-.custom-header-bg {
-    background-color: var(--bs-primary) !important;
-}
-.custom-header-bg-secondary {
-    background-color: var(--bs-secondary) !important;
+.greeting {
+    font-size: 1.5rem;
+    font-weight: 600;
 }
 
-
-/* 3. NEON DARK MODE OVERRIDES (data-bs-theme="dark") */
-html[data-bs-theme="dark"] {
-    color-scheme: dark; /* Penting untuk input dan scrollbar */
-}
-html[data-bs-theme="dark"] body {
-    background-color: var(--dark-bg) !important;
-    color: var(--bs-white) !important;
-}
-
-/* Navbar */
-html[data-bs-theme="dark"] .navbar {
-    background-color: var(--dark-card) !important;
-    border-bottom: 1px solid var(--neon-green);
-    box-shadow: 0 2px 5px rgba(57, 255, 20, 0.2); /* Bayangan neon */
-}
-html[data-bs-theme="dark"] .navbar-brand {
-    color: var(--neon-green) !important;
-}
-
-/* Cards */
-html[data-bs-theme="dark"] .card {
-    background-color: var(--dark-card) !important;
-    border-color: #2a333f;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-}
-
-/* Card Headers (Aksen Neon) */
-html[data-bs-theme="dark"] .card-header {
-    background-color: #1f2733 !important; /* Warna header lebih gelap */
-    color: var(--neon-green) !important;
-    border-bottom: 1px solid var(--neon-green);
-    font-weight: bold;
-}
-/* Override untuk card Live Camera (lebih menonjol) */
-html[data-bs-theme="dark"] .card-header.custom-header-bg {
-    background-color: var(--dark-bg) !important;
-    border-bottom: 2px solid var(--neon-green);
-    color: var(--neon-green) !important;
-}
-html[data-bs-theme="dark"] .card-header.custom-header-bg-secondary {
-    background-color: #1f2733 !important;
-    border-bottom: 2px solid var(--neon-green);
-    color: var(--neon-green) !important;
-}
-
-
-/* List Group Items (Device Info) */
-html[data-bs-theme="dark"] .list-group-item {
-    background-color: transparent !important;
-    border-color: #2a333f;
-    color: var(--bs-light) !important;
-}
-html[data-bs-theme="dark"] .text-muted {
-    color: #909ba8 !important; /* Warna teks info yang lebih terang */
-}
-
-/* Forms & Selects */
-html[data-bs-theme="dark"] .form-select,
-html[data-bs-theme="dark"] .form-control {
-    background-color: #1f2733;
-    border-color: #2a333f;
-    color: var(--bs-light);
-}
-
-/* Footer */
-html[data-bs-theme="dark"] footer {
-    background-color: var(--dark-card) !important;
-    border-top: 1px solid var(--neon-green);
-    color: var(--bs-light) !important;
-}
-
-/* Tombol (Button Overrides) */
-html[data-bs-theme="dark"] .btn-outline-secondary {
-    color: var(--neon-green);
-    border-color: var(--neon-green);
-}
-html[data-bs-theme="dark"] .btn-outline-secondary:hover {
-    background-color: var(--neon-green);
-    color: var(--dark-bg);
-}
-
-
-/* 4. Camera Section Styling */
-.camera-body {
-    min-height: 400px;
-}
-.camera-container {
-    width: 100%;
-    aspect-ratio: 4 / 3;
-    position: relative;
-    overflow: hidden;
-}
-.camera-container video {
-    object-fit: cover;
-    min-height: 100%;
-    transform: scale(1);
-    transition: transform 0.3s ease, filter 0.3s ease;
-}
-
-/* Status Indicator */
-.status-indicator {
-    font-weight: bold;
-    z-index: 10;
-    transition: background-color 0.3s;
-}
-.status-indicator.connected {
-    background-color: var(--neon-green) !important;
-    color: var(--dark-bg) !important;
-}
-.status-indicator.disconnected {
-    background-color: var(--bs-danger) !important;
-}
-
-/* CTA Overlay */
-.cta-overlay {
-    z-index: 20;
-    transition: opacity 0.3s;
-}
-.cta-overlay.hidden {
-    opacity: 0;
-    pointer-events: none;
-}
-.camera-container:has(.cta-overlay:not(.hidden)) video {
-    filter: brightness(0.5); 
-}
-
-/* 5. Gallery Styling */
-#gallery-grid img {
-    width: 100%;
-    aspect-ratio: 4 / 3;
-    object-fit: cover;
-    border-radius: 0.5rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+.menu-icon span {
+    color: var(--primary-color);
     cursor: pointer;
-    transition: transform 0.2s;
 }
-#gallery-grid img:hover {
-    transform: scale(1.05);
+
+/* BALANCE CARD */
+.balance-card {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
+    color: white;
+    padding: 25px;
+    border-radius: 15px;
+    margin-bottom: 25px;
+    box-shadow: var(--shadow);
+}
+
+.balance-card .label {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.balance-card .amount {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 5px 0 15px;
+}
+
+.balance-card .details {
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.balance-card .details span {
+    font-size: 1.1rem;
+    margin-right: 5px;
+}
+
+/* SECTION */
+.section {
+    padding: 15px 0;
+}
+
+.section h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+/* REPORT SUMMARY */
+.report-summary {
+    display: flex;
+    justify-content: space-between;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.report-summary > div {
+    flex-basis: 48%;
+    background-color: var(--background-color);
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.inflow .green-icon { color: var(--green-color); }
+.outflow .red-icon { color: var(--red-color); }
+
+.report-summary strong {
+    display: block;
+    font-size: 1rem;
+    margin-top: 5px;
+}
+
+/* CHART PLACEHOLDER */
+.chart-placeholder {
+    height: 150px;
+    background-color: #e9ecef;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* NAVBAR BAWAH */
+.navbar {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background-color: var(--card-background);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-width: 450px;
+    margin: 0 auto;
+    padding: 10px 0;
+    border-top: 1px solid #e0e0e0;
+    z-index: 100;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: #6c757d;
+    font-size: 0.75rem;
+    transition: color 0.3s;
+}
+
+.nav-item span {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+}
+
+.nav-item.active, .nav-item:hover {
+    color: var(--primary-color);
+}
+
+.main-action {
+    color: white;
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-10px);
+    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.4);
+}
+
+.main-action span {
+    font-size: 2rem !important;
 }
 
 
-/* 6. Responsive Adjustment (Opsional, Bootstrap sudah bagus) */
-@media (max-width: 991px) {
-    .camera-body {
-        min-height: 300px;
-    }
+/* --- ENROLL PAGE (fip_enroll.html) STYLES --- */
+.enroll-page .container {
+    text-align: center;
+    padding-top: 50px;
+}
+
+.enroll-page h2 {
+    margin-bottom: 10px;
+    font-size: 1.6rem;
+}
+
+.enroll-page .description {
+    color: #6c757d;
+    margin-bottom: 30px;
+}
+
+.camera-frame {
+    width: 100%;
+    max-width: 300px;
+    height: 300px;
+    margin: 0 auto 30px;
+    border: 3px solid var(--primary-color);
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    background-color: #000;
+}
+
+.camera-frame video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1); /* Mirror effect */
+}
+
+.overlay-circle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 90%;
+    height: 90%;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.btn {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    width: 100%;
+    max-width: 300px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.primary-btn {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.primary-btn span {
+    margin-right: 8px;
+    font-size: 1.5rem;
+}
+
+.status-msg {
+    margin-top: 20px;
+    padding: 10px;
+    border-radius: 5px;
+    font-weight: 600;
+}
+
+.status-msg.processing {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-msg.success {
+    background-color: #d4edda;
+    color: var(--green-color);
+}
+
+.status-msg.failed {
+    background-color: #f8d7da;
+    color: var(--red-color);
 }
