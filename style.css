@@ -282,3 +282,156 @@ body {
     background-color: #f8d7da;
     color: var(--red-color);
 }
+/* --- TAMBAHAN GAYA UNTUK HISTORY DAN PROFILE --- */
+
+/* HISTORY STYLES */
+.tab-menu {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.tab-button {
+    background: none;
+    border: none;
+    padding: 10px 15px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #6c757d;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s;
+}
+
+.tab-button.active {
+    color: var(--primary-color);
+    border-bottom: 3px solid var(--primary-color);
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #f1f1f1;
+}
+
+.history-item:last-child {
+    border-bottom: none;
+}
+
+.history-item span.material-icons {
+    font-size: 1.8rem;
+    margin-right: 15px;
+}
+
+.income-icon { color: var(--green-color); }
+.expense-icon { color: var(--red-color); }
+
+.history-item .details {
+    flex-grow: 1;
+}
+
+.history-item .title {
+    font-weight: 600;
+}
+
+.history-item .date {
+    font-size: 0.8rem;
+    color: #999;
+}
+
+.history-item .amount {
+    font-weight: 700;
+}
+
+.history-item .credit { color: var(--green-color); }
+.history-item .debit { color: var(--red-color); }
+
+
+/* PROFILE STYLES */
+.profile-section {
+    padding-top: 0;
+}
+
+.user-info {
+    text-align: center;
+    padding: 20px 0 30px;
+}
+
+.user-info .avatar span {
+    font-size: 5rem;
+    color: var(--primary-color);
+}
+
+.user-info h3 {
+    margin: 5px 0;
+}
+
+.user-info p {
+    font-size: 0.9rem;
+    color: #999;
+}
+
+.settings-card {
+    background-color: var(--card-background);
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+}
+
+.settings-card h4 {
+    font-size: 1.1rem;
+    color: var(--primary-color);
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #f1f1f1;
+}
+
+.setting-item, .setting-link {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #f7f7f7;
+}
+
+.setting-item:last-child, .setting-link:last-child {
+    border-bottom: none;
+}
+
+.setting-item span, .setting-link span:first-child {
+    font-weight: 500;
+}
+
+.setting-item p {
+    color: #6c757d;
+}
+
+.setting-link {
+    text-decoration: none;
+    color: var(--text-color);
+}
+
+.setting-link span.material-icons {
+    color: var(--primary-color);
+}
+
+.status-indicator.active {
+    color: var(--green-color);
+    font-weight: 600;
+}
+
+.logout-btn {
+    background-color: var(--red-color);
+    color: white;
+    width: 100%;
+    max-width: none;
+    margin-top: 20px;
+}
+
+/* MENONAKTIFKAN LINK PESAN */
+.disabled-link {
+    opacity: 0.5; /* Memberi indikasi bahwa tombol tidak aktif */
+    pointer-events: none; /* Mencegah tombol dipencet */
+}
