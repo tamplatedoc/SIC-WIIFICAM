@@ -1,64 +1,70 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-    <title>Pendaftaran FIP - VBank SoftGrammer</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VBank - Beranda</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
-    <h1>Pendaftaran FaceIDPay (FIP)</h1>
-    <video id="webcam" autoplay style="width:320px; height:240px;"></video><br>
-    <button onclick="captureAndEnroll()">Daftarkan Wajah FIP</button>
-    <p id="status_message"></p>
+    <div class="container">
+        <header class="header">
+            <div class="greeting">Halo, <span id="user_name">Budi</span> 👋</div>
+            <div class="menu-icon">
+                <span class="material-icons">notifications</span>
+            </div>
+        </header>
 
-    <script>
-        const video = document.getElementById('webcam');
-        const statusMsg = document.getElementById('status_message');
-        
-        // Asumsi data user sudah didapat dari sesi
-        const CURRENT_USER_ID = 'nasabah_001'; 
-        const CURRENT_USER_NAME = 'Budi Santoso';
-        
-        // 1. Inisialisasi kamera web
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => video.srcObject = stream)
-            .catch(err => {
-                statusMsg.textContent = "Error: Gagal akses kamera. Pastikan browser Anda mengizinkan akses.";
-                console.error(err);
-            });
+        <div class="balance-card">
+            <div class="label">Total Saldo Aktif</div>
+            <div class="amount" id="current_balance">Loading...</div>
+            <div class="details" id="toggle_balance">
+                <span class="material-icons">visibility_off</span>
+                Tampilkan Saldo
+            </div>
+        </div>
 
-        function captureAndEnroll() {
-            statusMsg.textContent = "Sedang memproses... Harap tunggu.";
-            
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // Konversi gambar ke Base64
-            const faceImageData = canvas.toDataURL('image/jpeg').split(',')[1];
-            
-            // Kirim data ke Backend VBank
-            fetch('/api/enroll_face', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    userId: CURRENT_USER_ID, 
-                    faceImageData: faceImageData,
-                    nama: CURRENT_USER_NAME,
-                    data_diri: {alamat: 'Jl. Merdeka', usia: 25, gender: 'L'}
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(data.success) {
-                    statusMsg.textContent = "✅ Pendaftaran FIP Berhasil!";
-                } else {
-                    statusMsg.textContent = "❌ Pendaftaran Gagal: " + data.message;
-                }
-            })
-            .catch(err => {
-                statusMsg.textContent = "❌ Gagal Terhubung ke Server VBank.";
-            });
-        }
-    </script>
+        <div class="section">
+            <h2>Laporan Singkat</h2>
+            <div class="report-summary">
+                <div class="inflow">
+                    <span class="material-icons green-icon">trending_up</span>
+                    <p>Pemasukan</p>
+                    <strong id="total_inflow">Rp 0</strong>
+                </div>
+                <div class="outflow">
+                    <span class="material-icons red-icon">trending_down</span>
+                    <p>Pengeluaran</p>
+                    <strong id="total_outflow">Rp 0</strong>
+                </div>
+            </div>
+            <div class="chart-placeholder">
+                
+                Grafik Transaksi Bulan Ini
+            </div>
+        </div>
+
+        <nav class="navbar">
+            <a href="index.html" class="nav-item active">
+                <span class="material-icons">home</span>
+                Beranda
+            </a>
+            <a href="history.html" class="nav-item">
+                <span class="material-icons">history</span>
+                Histori
+            </a>
+            <a href="fip_enroll.html" class="nav-item main-action">
+                <span class="material-icons">qr_code_scanner</span>
+                FIP Pay
+            </a>
+            <a href="profile.html" class="nav-item">
+                <span class="material-icons">person</span>
+                Me
+            </a>
+        </nav>
+    </div>
+
+    <script src="scripts.js"></script> 
 </body>
 </html>
