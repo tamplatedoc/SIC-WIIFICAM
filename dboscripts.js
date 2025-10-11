@@ -1,6 +1,6 @@
 // public_dbo/scripts.js
 
-const API_BASE_URL = 'http://localhost:4000/api/dbo'; // Ganti jika port berbeda
+const API_BASE_URL = 'http://127.0.0.1:4000/api/dbo'; // Ganti jika port berbeda
 const DBO_AUTH_ID = 'STAFF_DBO_001'; // ID untuk header otentikasi DBO
 
 // --- LOGIKA UTAMA ---
