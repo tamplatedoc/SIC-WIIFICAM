@@ -2,7 +2,7 @@
 
 // Ambil URL Ngrok atau localhost:3000
 // ⚠️ GANTI DENGAN URL NGrok AKTIF TERBARU DARI TERMINAL 3 (JIKA SUDAH BERUBAH)
-const API_BASE_URL = 'https://142422b71760.ngrok-free.app'; 
+const API_BASE_URL = ' https://5ae046bbdcdb.ngrok-free.app '; 
 
 // ID pengguna dummy yang sedang login (HARUS SAMA dengan ID di database)
 const CURRENT_USER_ID = 'nasabah_001'; 
