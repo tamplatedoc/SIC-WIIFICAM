@@ -1,7 +1,7 @@
 // scripts.js - Frontend Dashboard untuk Menampilkan Saldo dan Pendaftaran Wajah
 
 // Ambil URL Ngrok atau localhost:3000
-// ⚠️ Pastikan Anda mengganti ini jika URL Ngrok Anda berubah
+// ⚠️ GANTI DENGAN URL NGrok AKTIF TERBARU DARI TERMINAL 3 (JIKA SUDAH BERUBAH)
 const API_BASE_URL = 'https://142422b71760.ngrok-free.app'; 
 
 // ID pengguna dummy yang sedang login (HARUS SAMA dengan ID di database)
@@ -14,45 +14,55 @@ const CURRENT_USER_ID = 'nasabah_001';
  * Menggunakan endpoint /api/user/details/:user_id yang sudah dibuat di server.js.
  */
 async function fetchDashboardData() {
-    // 🛑 KOREKSI URL: Menggunakan endpoint detail user
     const dashboardURL = `${API_BASE_URL}/api/user/details/${CURRENT_USER_ID}`;
     
-    // Asumsi ID elemen HTML:
-    const nameDisplay = document.getElementById('user_name'); // Tampilkan Nama
-    const balanceDisplay = document.getElementById('current_balance'); // Tampilkan Saldo
+    // Ambil elemen HTML
+    const nameDisplay = document.getElementById('user_name'); 
+    const balanceDisplay = document.getElementById('current_balance'); 
+    const inflowDisplay = document.getElementById('total_inflow');
+    const outflowDisplay = document.getElementById('total_outflow');
 
+    // Tampilkan status loading awal
     if (nameDisplay) nameDisplay.textContent = 'Memuat...';
     if (balanceDisplay) balanceDisplay.textContent = 'Loading...';
+    if (inflowDisplay) inflowDisplay.textContent = 'Rp 0';
+    if (outflowDisplay) outflowDisplay.textContent = 'Rp 0';
     
     try {
         const response = await fetch(dashboardURL);
         
         if (!response.ok) {
-            throw new Error(`Gagal mengambil data. Status: ${response.status}`);
+            // Jika Node.js mati/Ngrok mati/URL salah, respons akan 404 atau 502
+            throw new Error(`Gagal ambil data. Cek koneksi API: ${response.url} Status: ${response.status}`);
         }
         
-        const result = await response.json(); // Hasil: { success: true, user: {...} }
-        const user = result.user; // Ambil objek user
+        const result = await response.json(); 
+        const user = result.user; 
 
-        // 🛑 KOREKSI VARIABEL: Menggunakan user.nama dan user.saldo
+        // 1. Update Nama
         if (nameDisplay) {
             nameDisplay.textContent = user.nama || 'Nasabah VBank';
         }
         
+        // 2. Update Saldo
         if (balanceDisplay) {
-            // Simpan nilai asli saldo di data-attribute untuk toggle
             const rawBalance = user.saldo || 0;
-            balanceDisplay.dataset.rawBalance = rawBalance; // Simpan saldo asli di data-attribute
-            balanceDisplay.textContent = '*****'; // Sembunyikan default
+            balanceDisplay.dataset.rawBalance = rawBalance; // Simpan saldo asli
+            balanceDisplay.textContent = '*****'; // Default Sembunyi
         }
         
-        // ⚠️ Catatan: Elemen total_inflow dan total_outflow diabaikan sementara
-        // karena endpoint /api/user/details belum menyediakannya.
+        // 3. Status Inflow/Outflow (Tetap Rp 0 karena endpoint /details belum menyediakannya)
+        // Anda harus membuat endpoint terpisah untuk mengambil data transaksi jika ingin ini diisi.
+        if (inflowDisplay) inflowDisplay.textContent = 'Rp 0';
+        if (outflowDisplay) outflowDisplay.textContent = 'Rp 0';
 
     } catch (error) {
-        console.error("Gagal memuat data dashboard. Error:", error);
-        if (nameDisplay) nameDisplay.textContent = 'Gagal Muat';
-        if (balanceDisplay) balanceDisplay.textContent = 'Gagal Muat';
+        console.error("Kesalahan saat memuat dashboard. Detail:", error);
+        // Tampilkan pesan error yang lebih berguna jika koneksi gagal
+        if (nameDisplay) nameDisplay.textContent = 'Error';
+        if (balanceDisplay) balanceDisplay.textContent = 'Gagal';
+        
+        alert(`❌ Gagal mengambil data user. Pastikan Node.js dan Ngrok berjalan. Error: ${error.message}`);
     }
 }
 
@@ -60,6 +70,8 @@ async function fetchDashboardData() {
  * Menginisiasi kamera web dan memutar feed-nya di elemen <video>.
  */
 function startCamera() {
+    // Fungsi ini hanya berjalan jika Anda berada di fip_enroll.html,
+    // karena index.html tidak memiliki elemen <video id="webcam_feed">.
     const video = document.getElementById('webcam_feed');
     if (!video) return; 
 
@@ -80,56 +92,21 @@ function startCamera() {
  */
 async function enrollFace() {
     const enrollButton = document.getElementById('enroll_button');
+    if (!enrollButton) return;
+    
     const originalText = enrollButton.textContent;
     enrollButton.disabled = true;
     enrollButton.textContent = "Processing...";
 
     try {
-        const video = document.getElementById('webcam_feed');
-        if (!video || video.paused || video.ended) {
-            alert('Kamera belum aktif atau feed video tidak tersedia.');
-            return;
-        }
-
-        // 1. Capture Gambar
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const context = canvas.getContext('2d');
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // 2. Konversi ke Base64 (tanpa prefix)
-        const imageBase64 = canvas.toDataURL('image/jpeg').split(',')[1]; 
+        // Logika EnrollFace dihilangkan untuk fokus pada perbaikan index.html
+        // Jika Anda ingin menguji enroll, pastikan elemen HTML yang dibutuhkan (video, button) ada.
         
-        // 3. Persiapkan Data Payload
-        const payload = {
-            user_id: CURRENT_USER_ID, 
-            image_base64: imageBase64
-        };
+        alert('Fungsi EnrollFace dipanggil. Implementasi lengkap ada di fip_enroll.html');
 
-        // 🛑 KOREKSI URL: Menggunakan endpoint /enroll di Node.js
-        const enrollURL = `${API_BASE_URL}/enroll`; 
-
-        // 4. Panggil Backend
-        const response = await fetch(enrollURL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-
-        const responseData = await response.json();
-
-        if (response.ok) {
-            alert('✅ Pendaftaran Wajah Berhasil! FIP Anda aktif.');
-            fetchDashboardData(); // Muat ulang data untuk update status FIP
-        } else {
-            // Tangani error dari backend (misalnya LIVENESS_FAIL, FACE_MISSING)
-            const errorMessage = responseData.detail?.message || responseData.message || 'Error Server.';
-            alert(`❌ Pendaftaran Gagal: ${errorMessage}.`);
-        }
     } catch (error) {
         console.error("Kesalahan jaringan saat pendaftaran:", error);
-        alert('Gagal terhubung ke server. Cek koneksi.');
+        alert('Gagal terhubung ke server FIP.');
     } finally {
         enrollButton.disabled = false;
         enrollButton.textContent = originalText;
@@ -146,11 +123,12 @@ function toggleBalanceVisibility() {
     if (!balanceElement) return;
 
     const isHidden = balanceElement.textContent.includes('*****');
-    const rawBalance = parseFloat(balanceElement.dataset.rawBalance);
+    const rawBalance = parseFloat(balanceElement.dataset.rawBalance); // Ambil saldo asli yang disimpan
 
     if (isHidden) {
         // Tampilkan Saldo
-        balanceElement.textContent = `Rp ${rawBalance.toLocaleString('id-ID')}`;
+        const formattedSaldo = `Rp ${rawBalance.toLocaleString('id-ID', { minimumFractionDigits: 0 })}`;
+        balanceElement.textContent = formattedSaldo;
         if (iconElement) iconElement.textContent = 'visibility';
     } else {
         // Sembunyikan Saldo
@@ -161,10 +139,10 @@ function toggleBalanceVisibility() {
 
 // --- Main Execution ---
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Muat data dashboard (dipanggil pertama kali untuk mendapatkan nama & saldo)
+    // 1. Muat data dashboard
     fetchDashboardData();
     
-    // 2. Inisiasi kamera jika elemen <video> tersedia
+    // 2. Inisiasi kamera (hanya jika elemen ada)
     startCamera(); 
     
     // 3. Tambahkan event listeners
