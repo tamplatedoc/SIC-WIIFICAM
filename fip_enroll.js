@@ -45,19 +45,24 @@ async function captureAndEnroll() {
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
     
     // Konversi gambar ke Base64, hapus header data URL
-    const faceImageData = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
-    
-    try {
-        const response = await fetch(API_ENROLL_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                userId: CURRENT_USER_ID, 
-                faceImageData: faceImageData,
-                nama: CURRENT_USER_NAME,
-                data_diri: {alamat: 'Jl. Merdeka', usia: 25, gender: 'L'} // Data tambahan untuk user
-            })
-        });
+// ... di dalam fungsi captureAndEnroll()
+
+// Konversi gambar ke Base64, hapus header data URL
+const faceImageData = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+
+try {
+    const response = await fetch(API_ENROLL_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            // 🛑 KOREKSI: Gunakan snake_case yang sesuai dengan model Python
+            user_id: CURRENT_USER_ID,        // HARUS 'user_id'
+            image_base64: faceImageData,     // HARUS 'image_base64'
+            // Field nama dan data_diri DIHAPUS karena tidak diproses oleh backend ML
+        })
+    });
+
+// ... (sisa kode sama)
 
         const data = await response.json();
 
