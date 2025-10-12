@@ -6,7 +6,7 @@ const statusMsg = document.getElementById('status_message');
 // Ganti dengan data user yang sebenarnya dari sesi login
 const CURRENT_USER_ID = 'nasabah_001'; 
 const CURRENT_USER_NAME = 'Budi Santoso';
-const API_ENROLL_URL = '/api/enroll_face'; // Endpoint di backend VBank (Node.js/Express)
+const API_ENROLL_URL = 'https://142422b71760.ngrok-free.app/enroll'; // Endpoint di backend VBank (Node.js/Express)
 
 /**
  * Mengakses kamera web browser.
