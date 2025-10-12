@@ -9,7 +9,7 @@ const enrollButton = document.getElementById('enroll_button'); // Asumsi Anda pu
 const CURRENT_USER_ID = 'nasabah_001'; 
 const CURRENT_USER_NAME = 'Budi Santoso';
 // Ganti URL Ngrok ini jika server Anda berubah
-const API_ENROLL_URL = 'https://5ae046bbdcdb.ngrok-free.app/fip_pay'; 
+const API_ENROLL_URL = 'https://5ae046bbdcdb.ngrok-free.app/enroll'; 
 const DEFAULT_SALDO = 500000; // Saldo awal yang dikirim ke Node.js jika user baru
 
 /**
