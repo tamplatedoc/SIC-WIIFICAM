@@ -527,6 +527,11 @@ $('btnCheckout').addEventListener('click', async ()=>{
       CART = []; renderCart(); msg.textContent = 'Pembayaran simulasi berhasil.'; $('dash_balance').textContent = toCurrency(bal - total); await loadUserTransactions(uid);
       return;
     }
+// Pastikan hanya dijalankan setelah user login dan saat proses pembayaran
+if (!window._CURRENT_USER || !pendingDocId || method !== 'fip') {
+  console.log('FIP PAY SKIPPED - Bukan proses FIP atau user belum login');
+  return;
+}
 
 // method === 'fip'
 if (!mediaStream) {
