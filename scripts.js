@@ -12,26 +12,36 @@ const CURRENT_USER_ID = 'nasabah_001';
 /**
  * Mengambil dan menampilkan data saldo dan nama user dari backend.
  */
+// scripts.js - Frontend Dashboard untuk Menampilkan Saldo dan Pendaftaran Wajah
+
+// ... (Kode API_BASE_URL dan CURRENT_USER_ID tetap) ...
+
+// --- FUNGSI UTAMA ---
+
+/**
+ * Mengambil dan menampilkan data saldo dan nama user dari backend.
+ */
 async function fetchDashboardData() {
+    // ... (Kode pengambilan data user detail tetap) ...
+
     const dashboardURL = `${API_BASE_URL}/api/user/details/${CURRENT_USER_ID}`;
     
     // Ambil elemen HTML
     const nameDisplay = document.getElementById('user_name'); 
     const balanceDisplay = document.getElementById('current_balance'); 
-    const inflowDisplay = document.getElementById('total_inflow');
-    const outflowDisplay = document.getElementById('total_outflow');
+    const inflowDisplay = document.getElementById('total_inflow'); // <-- Elemen ini
+    const outflowDisplay = document.getElementById('total_outflow'); // <-- Dan elemen ini
 
     // Tampilkan status loading awal
     if (nameDisplay) nameDisplay.textContent = 'Memuat...';
     if (balanceDisplay) balanceDisplay.textContent = 'Loading...';
-    if (inflowDisplay) inflowDisplay.textContent = 'Rp 0';
-    if (outflowDisplay) outflowDisplay.textContent = 'Rp 0';
+    if (inflowDisplay) inflowDisplay.textContent = 'Memuat...'; // 💡 UBAH: Status loading
+    if (outflowDisplay) outflowDisplay.textContent = 'Memuat...'; // 💡 UBAH: Status loading
     
     try {
         const response = await fetch(dashboardURL);
         
         if (!response.ok) {
-            // Jika Node.js mati/Ngrok mati/URL salah, respons akan 404 atau 502
             throw new Error(`Gagal ambil data. Cek koneksi API: ${response.url} Status: ${response.status}`);
         }
         
@@ -40,120 +50,86 @@ async function fetchDashboardData() {
 
         // 1. Update Nama
         if (nameDisplay) {
-            // 🛑 KOREKSI: Ambil nama dari user.nama, jika null, tampilkan 'Nama N/A'
             nameDisplay.textContent = user.nama || 'Nama N/A'; 
         }
         
         // 2. Update Saldo
         if (balanceDisplay) {
-            // Saldo diambil dari database, jika null atau undefined, gunakan 0
             const rawBalance = user.saldo || 0; 
-            
-            // Simpan saldo asli (number) untuk fungsi toggleBalanceVisibility()
             balanceDisplay.dataset.rawBalance = rawBalance; 
-            
-            // Set tampilan awal sebagai '*****'
             balanceDisplay.textContent = '*****'; 
         }
         
-        // 3. Status Inflow/Outflow (Tetap Rp 0 karena endpoint /details belum menyediakannya)
-        // Anda harus membuat endpoint terpisah untuk mengambil data transaksi jika ingin ini diisi.
-        if (inflowDisplay) inflowDisplay.textContent = 'Rp 0';
-        if (outflowDisplay) outflowDisplay.textContent = 'Rp 0';
+        // 3. Status Inflow/Outflow (akan diisi oleh fungsi terpisah)
+        // HAPUS: Baris ini tidak lagi diperlukan
+        // if (inflowDisplay) inflowDisplay.textContent = 'Rp 0';
+        // if (outflowDisplay) outflowDisplay.textContent = 'Rp 0';
 
-// scripts.js (Bagian fungsi fetchDashboardData)
 
     } catch (error) {
+        // ... (Kode penanganan error tetap) ...
         console.error("Kesalahan saat memuat dashboard. Detail:", error);
         
-        // Tampilkan pesan error yang lebih berguna
         if (nameDisplay) nameDisplay.textContent = 'Error Koneksi';
         if (balanceDisplay) balanceDisplay.textContent = 'Gagal Muat';
+        if (inflowDisplay) inflowDisplay.textContent = 'Error'; // 💡 TAMBAH: Penanganan error
+        if (outflowDisplay) outflowDisplay.textContent = 'Error'; // 💡 TAMBAH: Penanganan error
         
-        // 🛑 Peningkatan: Tampilkan URL yang dicoba di pesan alert
         alert(`❌ Gagal mengambil data user.\nURL Gagal: ${dashboardURL}\nPastikan Node.js dan Ngrok berjalan. Error: ${error.message}`);
     }
 }
 
-/**
- * Menginisiasi kamera web dan memutar feed-nya di elemen <video>.
- */
-function startCamera() {
-    // Fungsi ini tidak berubah dan hanya untuk inisiasi webcam (opsional di dashboard)
-    const video = document.getElementById('webcam_feed');
-    if (!video) return; 
-
-    navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
-            video.srcObject = stream;
-            video.play();
-            console.log("Kamera berhasil diaktifkan.");
-        })
-        .catch(err => {
-            console.error("Gagal mengakses kamera:", err);
-            alert("Harap izinkan akses kamera untuk pendaftaran wajah.");
-        });
-}
-
-/**
- * Mengambil gambar dari webcam dan mengirimkannya ke backend ML untuk pendaftaran.
- */
-async function enrollFace() {
-    const enrollButton = document.getElementById('enroll_button');
-    if (!enrollButton) return;
+// 💡 FUNGSI BARU: Mengambil ringkasan transaksi (Inflow/Outflow)
+async function fetchTransactionSummary() {
+    const transactionsURL = `${API_BASE_URL}/api/user/transactions/${CURRENT_USER_ID}`;
     
-    const originalText = enrollButton.textContent;
-    enrollButton.disabled = true;
-    enrollButton.textContent = "Processing...";
+    const inflowDisplay = document.getElementById('total_inflow');
+    const outflowDisplay = document.getElementById('total_outflow');
 
     try {
-        alert('Fungsi EnrollFace dipanggil. Implementasi lengkap ada di fip_enroll.html');
-
-    } catch (error) {
-        console.error("Kesalahan jaringan saat pendaftaran:", error);
-        alert('Gagal terhubung ke server FIP.');
-    } finally {
-        enrollButton.disabled = false;
-        enrollButton.textContent = originalText;
-    }
-}
-
-/**
- * Mengaktifkan/menonaktifkan tampilan saldo.
- */
-function toggleBalanceVisibility() {
-    const balanceElement = document.getElementById('current_balance');
-    const iconElement = document.querySelector('#toggle_balance .material-icons');
-    
-    if (!balanceElement) return;
-
-    const isHidden = balanceElement.textContent.includes('*****');
-    // Ambil saldo asli yang disimpan (sudah dipastikan number di fetchDashboardData)
-    const rawBalance = parseFloat(balanceElement.dataset.rawBalance); 
-
-    if (isHidden) {
-        // Tampilkan Saldo dengan format Rupiah (tanpa desimal)
-        // 🛑 KOREKSI: Menggunakan Intl.NumberFormat untuk format Rupiah
-        const formattedSaldo = rawBalance.toLocaleString('id-ID', {
+        const response = await fetch(transactionsURL);
+        
+        if (!response.ok) {
+            throw new Error(`Gagal ambil transaksi. Status: ${response.status}`);
+        }
+        
+        const result = await response.json(); 
+        const { totalInflow, totalOutflow } = result; 
+        
+        // Fungsi pembantu untuk format Rupiah (tanpa desimal)
+        const formatRupiah = (amount) => amount.toLocaleString('id-ID', {
              style: 'currency', 
              currency: 'IDR', 
              minimumFractionDigits: 0,
              maximumFractionDigits: 0 
         });
-        
-        balanceElement.textContent = formattedSaldo;
-        if (iconElement) iconElement.textContent = 'visibility';
-    } else {
-        // Sembunyikan Saldo
-        balanceElement.textContent = '*****';
-        if (iconElement) iconElement.textContent = 'visibility_off';
+
+        // Update Inflow
+        if (inflowDisplay) {
+            inflowDisplay.textContent = formatRupiah(totalInflow || 0);
+        }
+
+        // Update Outflow
+        if (outflowDisplay) {
+            outflowDisplay.textContent = formatRupiah(totalOutflow || 0);
+        }
+
+    } catch (error) {
+        console.error("Kesalahan saat memuat ringkasan transaksi. Detail:", error);
+        if (inflowDisplay) inflowDisplay.textContent = 'Rp 0';
+        if (outflowDisplay) outflowDisplay.textContent = 'Rp 0';
     }
 }
 
+// ... (Fungsi startCamera, enrollFace, dan toggleBalanceVisibility tetap) ...
+
 // --- Main Execution ---
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Muat data dashboard
+    // 1. Muat data dashboard (Nama & Saldo)
     fetchDashboardData();
+    
+    // 💡 TAMBAH: Muat ringkasan transaksi (Inflow & Outflow)
+    fetchTransactionSummary(); 
     
     // 2. Inisiasi kamera (hanya jika elemen ada)
     startCamera(); 
