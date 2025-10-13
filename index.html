@@ -189,332 +189,422 @@
   </main>
 
   <script type="module">
-  // ======================== CONFIG ========================
-  // Ganti dengan Firebase config project Anda (modular v9+)
-  const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyAya-7QEtbflW7jh_EoPclFBQ43VnrKZrM",
-    authDomain: "rdw-katalog.firebaseapp.com",
-    projectId: "rdw-katalog",
-    storageBucket: "rdw-katalog.firebasestorage.app",
-    messagingSenderId: "506572005524",
-    appId: "1:506572005524:web:43b7d27f2c33a1d4071481"
-  };
+/**
+ * Full single-module script for:
+ * - Firebase init (modular v9)
+ * - Register / Login (Auth + Firestore users)
+ * - Camera start/stop + capture
+ * - Enroll (POST /enroll) with full data URL
+ * - Shop checkout with FIP pay (POST /fip_pay) including user_id
+ * - Transactions: create PENDING tx doc, update SUCCESS/FAILED
+ * - Robust ML error handling and retries
+ *
+ * Copy-paste into your existing HTML inside <script type="module"> ...
+ */
 
-  // Base URL server Node.js (ganti sesuai env)
-  const API_BASE = 'https://12e7f5acfe39.ngrok-free.app';
+/* ================== CONFIG (edit if perlu) ================== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAya-7QEtbflW7jh_EoPclFBQ43VnrKZrM",
+  authDomain: "rdw-katalog.firebaseapp.com",
+  projectId: "rdw-katalog",
+  storageBucket: "rdw-katalog.firebasestorage.app",
+  messagingSenderId: "506572005524",
+  appId: "1:506572005524:web:43b7d27f2c33a1d4071481"
+};
+const API_BASE = 'https://12e7f5acfe39.ngrok-free.app'; // ganti sesuai env
 
-  // ======================== IMPORTS ========================
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
-  import { getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs, query, where, updateDoc, serverTimestamp, orderBy, limit } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js';
+/* ================== IMPORT FIREBASE (modular) ================== */
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+import {
+  getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs,
+  query, where, updateDoc, serverTimestamp, orderBy, limit
+} from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+import {
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut
+} from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js';
 
-  const app = initializeApp(FIREBASE_CONFIG);
-  const db = getFirestore(app);
-  const auth = getAuth(app);
+const app = initializeApp(FIREBASE_CONFIG);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
-  // ======================== Simple SPA router ========================
-  const pages = {
-    '': 'page_landing',
-    '#/': 'page_landing',
-    '#/dashboard': 'page_dashboard',
-    '#/shop': 'page_shop',
-    '#/admin': 'page_admin'
-  };
+/* ================== DOM HELPERS / UTIL ================== */
+const $ = id => document.getElementById(id);
+const log = (...args) => console.log('[FIP]', ...args);
 
-  function showPage(hash){
-    Object.values(pages).forEach(id => document.getElementById(id).classList.add('hidden'));
-    const id = pages[hash] || pages[''];
-    document.getElementById(id).classList.remove('hidden');
-    renderNav();
-  }
+function toCurrency(idr){
+  try{
+    return new Intl.NumberFormat('id-ID', { style:'currency', currency:'IDR' }).format(Number(idr||0));
+  } catch(e) { return 'Rp ' + (idr||0); }
+}
 
-  function renderNav(){
-    const nav = document.getElementById('mainNav');
-    nav.innerHTML = '';
-    const user = window._CURRENT_USER || null;
-    const links = [];
-    links.push({t:'Home',h:'#/'});
-    if(user){
-      links.push({t:'Dashboard',h:'#/dashboard'});
-      links.push({t:'Shop',h:'#/shop'});
-      if(user.role==='admin') links.push({t:'DBO',h:'#/admin'});
-      links.push({t:'Logout',h:'#logout'});
-    } else {
-      links.push({t:'Login/Register',h:'#/'});
-    }
-    links.forEach(l => {
-      const a = document.createElement('a');
-      a.href = l.h;
-      a.textContent = l.t;
-      a.onclick = (ev) => {
-        if(l.h==='#logout'){ ev.preventDefault(); doLogout(); return; }
-        setTimeout(()=>showPage(l.h),10);
-      };
-      nav.appendChild(a);
+async function safeParseJsonResponse(res){
+  try {
+    const txt = await res.text();
+    try { return JSON.parse(txt); } catch { return { raw: txt }; }
+  } catch(e) { return { error: 'cannot-read-response' }; }
+}
+
+/* ================== AUTH: REGISTER & LOGIN ================== */
+$('btnRegister').addEventListener('click', async () => {
+  const name = $('reg_name').value.trim();
+  const email = $('reg_email').value.trim();
+  const password = $('reg_password').value;
+  const role = $('reg_role').value;
+  const topup = Number($('reg_topup').value) || 0;
+  const msg = $('reg_msg');
+  msg.textContent = 'Mendaftarkan...';
+  if(!name || !email || !password) { msg.textContent = 'Isi semua field'; return; }
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    const uid = cred.user.uid;
+    await setDoc(doc(db,'users',uid), {
+      user_id: uid,
+      nama: name,
+      email: email,
+      role: role,
+      saldo: topup,
+      face_id_status: 'Nonaktif',
+      created_at: serverTimestamp()
     });
-  }
-
-  window.addEventListener('hashchange', () => showPage(location.hash));
-  showPage(location.hash);
-
-  // ======================== Utilities ========================
-  function toCurrency(idr){
-    try{
-      return new Intl.NumberFormat('id-ID', { style:'currency', currency:'IDR' }).format(Number(idr||0));
-    }catch(e){return 'Rp ' + (idr||0)}
-  }
-
-  function uidShort(uid){ return uid ? uid.substring(0,8) : '-'; }
-
-  // ======================== Register / Login ========================
-  document.getElementById('btnRegister').addEventListener('click', async ()=>{
-    const name = document.getElementById('reg_name').value.trim();
-    const email = document.getElementById('reg_email').value.trim();
-    const password = document.getElementById('reg_password').value;
-    const role = document.getElementById('reg_role').value;
-    const topup = Number(document.getElementById('reg_topup').value) || 0;
-    const msg = document.getElementById('reg_msg');
-    msg.textContent = 'Mendaftarkan...';
-    if(!name||!email||!password){ msg.textContent='Isi semua field'; return; }
-    try{
-      // buat user di Firebase Auth (optional) dan simpan data di Firestore
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      const uid = cred.user.uid;
-      await setDoc(doc(db,'users',uid), {
-        user_id: uid,
-        nama: name,
-        email: email,
-        role: role,
-        saldo: topup,
-        face_id_status: role==='customer' ? 'Nonaktif' : 'Nonaktif',
-        created_at: serverTimestamp()
+    if(topup>0){
+      await addDoc(collection(db,'transactions'), {
+        user_id: uid, amount: topup, type:'CREDIT', transaction_id:'TOPUP_' + Date.now(), timestamp: serverTimestamp()
       });
-      // catat transaksi topup jika >0
-      if(topup>0){
-        await addDoc(collection(db,'transactions'),{
-          user_id: uid, amount: topup, type:'CREDIT', transaction_id:'TOPUP_' + Date.now(), timestamp: serverTimestamp()
-        });
-      }
-      msg.textContent = 'Registrasi sukses. Anda akan login otomatis.';
-      // set current user
-      await onLoginSuccess({ uid, nama: name, role, email });
-    }catch(err){
-      console.error(err); msg.textContent = 'Error: ' + (err.message || err);
     }
-  });
-
-  document.getElementById('btnLogin').addEventListener('click', async ()=>{
-    const email = document.getElementById('login_email').value.trim();
-    const password = document.getElementById('login_password').value;
-    const msg = document.getElementById('login_msg');
-    msg.textContent = 'Logging in...';
-    try{
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      const uid = cred.user.uid;
-      const udoc = await getDoc(doc(db,'users',uid));
-      if(!udoc.exists()){ msg.textContent='Akun tidak ditemukan di Firestore.'; return; }
-      const data = udoc.data();
-      await onLoginSuccess({ uid, ...data });
-      msg.textContent = 'Login sukses.';
-    }catch(err){ console.error(err); msg.textContent = 'Error: ' + (err.message || err); }
-  });
-
-  async function onLoginSuccess(userData){
-    // set global state
-    window._CURRENT_USER = userData;
-    renderNav();
-    location.hash = '#/dashboard';
-    // populate dashboard
-    document.getElementById('dash_name').textContent = userData.nama || userData.email;
-    document.getElementById('dash_uid').textContent = userData.user_id || userData.uid || userData.uidShort || '-';
-    document.getElementById('dash_role').textContent = (userData.role||'customer');
-    document.getElementById('dash_balance').textContent = toCurrency(userData.saldo||0);
-    document.getElementById('dash_avatar').src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(userData.nama || userData.email) + '&background=0b84ff&color=fff&size=128';
-    // fetch recent transactions
-    await loadUserTransactions(userData.user_id || userData.uid);
+    msg.textContent = 'Registrasi sukses. Login otomatis...';
+    // Auto-login state update
+    await onLoginSuccess({ user_id: uid, nama: name, role, email, saldo: topup });
+  } catch(err) {
+    console.error(err);
+    msg.textContent = 'Error: ' + (err.message || err);
   }
+});
 
-  async function doLogout(){
-    await signOut(auth).catch(()=>{});
-    window._CURRENT_USER = null; renderNav(); location.hash = '#/';
+$('btnLogin').addEventListener('click', async () => {
+  const email = $('login_email').value.trim();
+  const password = $('login_password').value;
+  const msg = $('login_msg');
+  msg.textContent = 'Logging in...';
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    const uid = cred.user.uid;
+    const udoc = await getDoc(doc(db,'users',uid));
+    if(!udoc.exists()) { msg.textContent = 'Akun tidak ditemukan di Firestore.'; return; }
+    const data = udoc.data();
+    await onLoginSuccess({ user_id: uid, ...data });
+    msg.textContent = 'Login sukses.';
+  } catch(err) {
+    console.error(err);
+    msg.textContent = 'Error: ' + (err.message || err);
   }
+});
 
-  // ======================== Transactions (simple Firestore-based transfer) ========================
-  document.getElementById('btnTransfer').addEventListener('click', async ()=>{
-    const to = document.getElementById('tx_to').value.trim();
-    const amount = Number(document.getElementById('tx_amount').value);
-    const note = document.getElementById('tx_note').value;
-    const msg = document.getElementById('tx_msg');
-    if(!window._CURRENT_USER){ msg.textContent='Login dahulu'; return; }
-    if(!to||!amount||amount<=0){ msg.textContent='Tujuan dan jumlah tidak valid'; return; }
-    msg.textContent = 'Memproses transfer...';
-    try{
-      // simple transaction: decrease sender, increase recipient inside transaction via cloud function normally
-      // For demo: write a debit and credit tx and update balances naïvely (not safe for concurrency)
-      const fromId = window._CURRENT_USER.user_id || window._CURRENT_USER.uid;
-      const fromRef = doc(db,'users',fromId);
-      const toRef = doc(db,'users',to);
-      const fromSnap = await getDoc(fromRef);
-      const toSnap = await getDoc(toRef);
-      if(!toSnap.exists()){ msg.textContent='Tujuan tidak ditemukan'; return; }
-      const fromBal = (fromSnap.data().saldo||0);
-      if(fromBal < amount){ msg.textContent='Saldo tidak cukup'; return; }
-      // update balances (demo only)
-      await updateDoc(fromRef, { saldo: fromBal - amount });
-      await updateDoc(toRef, { saldo: (toSnap.data().saldo||0) + amount });
-      // log transactions
-      await addDoc(collection(db,'transactions'),{ user_id: fromId, amount: -amount, type: 'DEBIT', transaction_id:'TX_' + Date.now(), note, timestamp: serverTimestamp() });
-      await addDoc(collection(db,'transactions'),{ user_id: to, amount: amount, type: 'CREDIT', transaction_id:'TX_' + Date.now(), note, timestamp: serverTimestamp() });
-      msg.textContent = 'Transfer berhasil.';
-      // refresh
-      const newBalanceSnap = await getDoc(fromRef);
-      document.getElementById('dash_balance').textContent = toCurrency(newBalanceSnap.data().saldo||0);
-      await loadUserTransactions(fromId);
-    }catch(err){ console.error(err); msg.textContent = 'Error: '+(err.message||err); }
-  });
-
-  // ======================== Load transactions
-  async function loadUserTransactions(uid){
-    try{
-      const q = query(collection(db,'transactions'), where('user_id','==', uid));
-      const snap = await getDocs(q);
-      const list = [];
-      snap.forEach(d=> list.push(d.data()));
-      const el = document.getElementById('dash_tx');
-      if(list.length===0) { el.textContent = 'Belum ada transaksi'; return; }
-      const rows = list.slice(0,20).map(t=> `<div class=card style="margin-bottom:8px"><div><strong>${t.type}</strong> ${t.amount}</div><div class=small>${t.transaction_id || ''} • ${t.note||''}</div></div>`).join('');
-      el.innerHTML = rows;
-    }catch(e){ console.error(e); }
-  }
-
-  // ======================== Camera + FIP Enroll
-  let mediaStream = null;
-  const video = document.getElementById('camera_preview');
-  document.getElementById('btnStartCam').addEventListener('click', async ()=>{
-    try{
-      mediaStream = await navigator.mediaDevices.getUserMedia({ video: { width:320, height:240 }, audio:false });
-      video.srcObject = mediaStream;
-      document.getElementById('fip_msg').textContent = 'Kamera aktif.';
-    }catch(err){ console.error(err); document.getElementById('fip_msg').textContent = 'Gagal akses kamera: '+err.message; }
-  });
-  document.getElementById('btnStopCam').addEventListener('click', ()=>{
-    if(mediaStream) mediaStream.getTracks().forEach(t=>t.stop()); mediaStream=null; video.srcObject=null; document.getElementById('fip_msg').textContent='Kamera dimatikan';
-  });
-
-  document.getElementById('btnCapture').addEventListener('click', async ()=>{
-    const msg = document.getElementById('fip_msg');
-    if(!mediaStream){ msg.textContent = 'Buka kamera dahulu'; return; }
-    if(!window._CURRENT_USER){ msg.textContent = 'Login dahulu'; return; }
-    msg.textContent = 'Mengambil foto...';
-    // capture frame to canvas
-    const canvas = document.createElement('canvas'); canvas.width=320; canvas.height=240; const ctx = canvas.getContext('2d'); ctx.drawImage(video,0,0,canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.8); // data:image/jpeg;base64,...
-    const base64 = dataUrl.split('base64,')[1];
-    // call backend /enroll
-    msg.textContent = 'Mengirim ke server enroll...';
-    try{
-      const payload = { user_id: window._CURRENT_USER.user_id || window._CURRENT_USER.uid, image_base64: base64 };
-      const res = await fetch(API_BASE + '/enroll', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
-      const resJson = await res.json();
-      if(res.ok){
-        msg.textContent = 'Enroll sukses: ' + (resJson.message || JSON.stringify(resJson));
-        // update user face_id_status in Firestore
-        await updateDoc(doc(db,'users', window._CURRENT_USER.user_id), { face_id_status: 'Aktif' });
-        // show notification in dashboard
-        const notif = document.getElementById('dash_notif'); notif.innerHTML = `<div class=badge>FIP Aktif</div> Pendaftaran wajah berhasil`;
-      } else {
-        msg.textContent = 'Enroll gagal: ' + (resJson.message || JSON.stringify(resJson));
-      }
-    }catch(err){ console.error(err); msg.textContent = 'Error enroll: ' + (err.message||err); }
-  });
-
-  // ======================== Shop (merchant sample)
-  const sampleItems = [
-    { id:'p1', name:'Pulsa 50k', price:50000 },
-    { id:'p2', name:'Voucher Game 100k', price:100000 },
-    { id:'p3', name:'T-shirt FIP', price:75000 }
-  ];
-  let CART = [];
-  function renderShop(){
-    const container = document.getElementById('shop_items');
-    container.innerHTML = sampleItems.map(it => `<div class="card" style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${it.name}</strong><div class=small>${toCurrency(it.price)}</div></div><div><button onclick="addToCart('${it.id}')">Tambah</button></div></div></div>`).join('');
-    renderCart();
-  }
-  window.addToCart = function(id){ const it = sampleItems.find(s=>s.id===id); CART.push(it); renderCart(); }
-  function renderCart(){
-    const el = document.getElementById('cart_list');
-    if(CART.length===0) { el.innerHTML = 'Keranjang kosong'; document.getElementById('cart_total').textContent = toCurrency(0); return; }
-    const rows = CART.map((c,i)=> `<div class=small>${i+1}. ${c.name} — ${toCurrency(c.price)}</div>`).join('');
-    el.innerHTML = rows;
-    const total = CART.reduce((s,i)=> s + i.price,0);
-    document.getElementById('cart_total').textContent = toCurrency(total);
-  }
-  document.getElementById('pay_method').addEventListener('change', (e)=>{ document.getElementById('pay_fip_opts').classList.toggle('hidden', e.target.value!=='fip'); });
-
-  document.getElementById('btnCheckout').addEventListener('click', async ()=>{
-    const method = document.getElementById('pay_method').value;
-    const msg = document.getElementById('checkout_msg');
-    if(CART.length===0){ msg.textContent='Keranjang kosong'; return; }
-    if(!window._CURRENT_USER){ msg.textContent='Login dulu'; return; }
-    const total = CART.reduce((s,i)=> s + i.price,0);
-    msg.textContent = 'Memproses pembayaran...';
-    if(method==='simulate'){
-      // do simple Firestore debit
-      try{
-        const uid = window._CURRENT_USER.user_id;
-        const userRef = doc(db,'users',uid);
-        const snap = await getDoc(userRef);
-        const bal = snap.data().saldo || 0;
-        if(bal < total){ msg.textContent = 'Saldo tidak cukup'; return; }
-        await updateDoc(userRef,{ saldo: bal - total });
-        await addDoc(collection(db,'transactions'),{ user_id: uid, amount: -total, type:'DEBIT', transaction_id:'SHOP_' + Date.now(), timestamp: serverTimestamp() });
-        CART = []; renderCart(); msg.textContent = 'Pembayaran simulasi berhasil.';
-        document.getElementById('dash_balance').textContent = toCurrency(bal - total);
-      }catch(err){ console.error(err); msg.textContent = 'Error: ' + err.message; }
-    } else if(method==='fip'){
-      // need camera capture (reuse canvas) and call backend /fip_pay
-      try{
-        if(!mediaStream){ msg.textContent='Buka kamera terlebih dahulu (di Dashboard) untuk memverifikasi wajah.'; return; }
-        const canvas = document.createElement('canvas'); canvas.width=320; canvas.height=240; canvas.getContext('2d').drawImage(video,0,0,320,240);
-        const base64 = canvas.toDataURL('image/jpeg',0.8).split('base64,')[1];
-        const payload = { image_base64: base64, amount: total.toString(), shop_tx_id: 'SHOP_' + Date.now() };
-        const res = await fetch(API_BASE + '/fip_pay', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
-        const data = await res.json();
-        if(res.ok){ msg.textContent = 'Pembayaran FIP sukses: ' + (data.message || JSON.stringify(data)); CART=[]; renderCart(); await loadUserTransactions(window._CURRENT_USER.user_id); }
-        else { msg.textContent = 'Pembayaran FIP gagal: ' + (data.message || JSON.stringify(data)); }
-      }catch(err){ console.error(err); msg.textContent = 'Error saat FIP pay: ' + err.message; }
-    }
-  });
-
-  // ======================== Admin: load users & topup via server
-  document.getElementById('btn_admin_get_users').addEventListener('click', async ()=>{
-    const el = document.getElementById('admin_users'); el.textContent = 'Loading...';
-    try{
-      const snap = await getDocs(collection(db,'users'));
-      const rows = [];
-      snap.forEach(d=> rows.push(d.data()));
-      if(rows.length===0) el.textContent = 'Tidak ada user';
-      else el.innerHTML = '<table><thead><tr><th>user_id</th><th>nama</th><th>role</th><th>saldo</th><th>fip</th></tr></thead><tbody>' + rows.map(r=> `<tr><td>${r.user_id}</td><td>${r.nama||'-'}</td><td>${r.role||'-'}</td><td>${r.saldo||0}</td><td>${r.face_id_status||'Nonaktif'}</td></tr>`).join('') + '</tbody></table>';
-    }catch(err){ console.error(err); el.textContent = 'Error: ' + err.message; }
-  });
-
-  document.getElementById('btn_admin_topup').addEventListener('click', async ()=>{
-    const user = document.getElementById('admin_topup_user').value.trim();
-    const amount = Number(document.getElementById('admin_topup_amount').value);
-    const el = document.getElementById('admin_topup_msg');
-    if(!user||!amount){ el.textContent = 'Isi user dan amount'; return; }
-    try{
-      const res = await fetch(API_BASE + '/api/admin/topup', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ user_id: user, amount }) });
-      const data = await res.json();
-      if(res.ok) el.textContent = 'Top-up sukses: ' + (data.message || JSON.stringify(data)); else el.textContent = 'Gagal: ' + (data.message || JSON.stringify(data));
-    }catch(err){ console.error(err); el.textContent = 'Error: ' + err.message; }
-  });
-
-  // ======================== Init
-  renderShop();
+async function onLoginSuccess(userData){
+  window._CURRENT_USER = userData;
   renderNav();
+  location.hash = '#/dashboard';
+  $('dash_name').textContent = userData.nama || userData.email;
+  $('dash_uid').textContent = userData.user_id || userData.uid || '-';
+  $('dash_role').textContent = (userData.role||'customer');
+  $('dash_balance').textContent = toCurrency(userData.saldo||0);
+  $('dash_avatar').src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(userData.nama || userData.email) + '&background=0b84ff&color=fff&size=128';
+  await loadUserTransactions(userData.user_id || userData.uid);
+}
 
-  </script>
+async function doLogout(){
+  await signOut(auth).catch(()=>{});
+  window._CURRENT_USER = null;
+  renderNav();
+  location.hash = '#/';
+}
+
+/* ================== NAV / SPA helpers ================== */
+const pages = { '': 'page_landing', '#/': 'page_landing', '#/dashboard': 'page_dashboard', '#/shop': 'page_shop', '#/admin': 'page_admin' };
+function showPage(hash){
+  Object.values(pages).forEach(id => { const el = $(id); if(el) el.classList.add('hidden'); });
+  const id = pages[hash] || pages[''];
+  const el = $(id); if(el) el.classList.remove('hidden');
+  renderNav();
+}
+function renderNav(){
+  const nav = $('mainNav'); if(!nav) return;
+  nav.innerHTML = '';
+  const user = window._CURRENT_USER || null;
+  const links = [{t:'Home',h:'#/'}];
+  if(user){ links.push({t:'Dashboard',h:'#/dashboard'},{t:'Shop',h:'#/shop'}); if(user.role==='admin') links.push({t:'DBO',h:'#/admin'}); links.push({t:'Logout',h:'#logout'}); }
+  else links.push({t:'Login/Register',h:'#/'});
+  links.forEach(l => {
+    const a = document.createElement('a'); a.href = l.h; a.textContent = l.t; a.style.marginRight='12px';
+    a.onclick = (ev) => { if(l.h==='#logout'){ ev.preventDefault(); doLogout(); return; } setTimeout(()=>showPage(l.h),10); };
+    nav.appendChild(a);
+  });
+}
+window.addEventListener('hashchange', ()=> showPage(location.hash));
+showPage(location.hash);
+
+/* ================== Transactions & History ================== */
+$('btnTransfer')?.addEventListener('click', async ()=>{
+  const to = $('tx_to').value.trim();
+  const amount = Number($('tx_amount').value);
+  const note = $('tx_note').value;
+  const msg = $('tx_msg');
+  if(!window._CURRENT_USER){ msg.textContent='Login dahulu'; return; }
+  if(!to||!amount||amount<=0){ msg.textContent='Tujuan dan jumlah tidak valid'; return; }
+  msg.textContent = 'Memproses transfer...';
+  try {
+    const fromId = window._CURRENT_USER.user_id;
+    const fromRef = doc(db,'users',fromId);
+    const toRef = doc(db,'users',to);
+    const fromSnap = await getDoc(fromRef);
+    const toSnap = await getDoc(toRef);
+    if(!toSnap.exists()){ msg.textContent='Tujuan tidak ditemukan'; return; }
+    const fromBal = (fromSnap.data().saldo||0);
+    if(fromBal < amount){ msg.textContent='Saldo tidak cukup'; return; }
+    await updateDoc(fromRef, { saldo: fromBal - amount });
+    await updateDoc(toRef, { saldo: (toSnap.data().saldo||0) + amount });
+    await addDoc(collection(db,'transactions'), { user_id: fromId, amount: -amount, type: 'DEBIT', transaction_id:'TX_' + Date.now(), note, timestamp: serverTimestamp() });
+    await addDoc(collection(db,'transactions'), { user_id: to, amount: amount, type: 'CREDIT', transaction_id:'TX_' + Date.now(), note, timestamp: serverTimestamp() });
+    msg.textContent = 'Transfer berhasil.';
+    const newBalanceSnap = await getDoc(fromRef);
+    $('dash_balance').textContent = toCurrency(newBalanceSnap.data().saldo||0);
+    await loadUserTransactions(fromId);
+  } catch(err){ console.error(err); $('tx_msg').textContent = 'Error: ' + (err.message||err); }
+});
+
+async function loadUserTransactions(uid){
+  try {
+    const q = query(collection(db,'transactions'), where('user_id','==', uid));
+    const snap = await getDocs(q);
+    const list = []; snap.forEach(d => list.push(d.data()));
+    const el = $('dash_tx');
+    if(!el) return;
+    if(list.length===0){ el.textContent = 'Belum ada transaksi'; return; }
+    el.innerHTML = list.slice(0,20).map(t => `<div class="card" style="margin-bottom:8px"><div><strong>${t.type}</strong> ${t.amount}</div><div class="small">${t.transaction_id||''} • ${t.note||''}</div></div>`).join('');
+  } catch(e){ console.error(e); }
+}
+
+/* ================== CAMERA & ENROLL ================== */
+let mediaStream = null;
+const video = $('camera_preview');
+
+$('btnStartCam').addEventListener('click', async ()=>{
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ video: { width:320, height:240 }, audio:false });
+    video.srcObject = mediaStream;
+    $('fip_msg').textContent = 'Kamera aktif.';
+  } catch(err) {
+    console.error(err);
+    $('fip_msg').textContent = 'Gagal akses kamera: ' + err.message;
+  }
+});
+$('btnStopCam').addEventListener('click', ()=>{
+  if(mediaStream) mediaStream.getTracks().forEach(t=>t.stop());
+  mediaStream = null; video.srcObject = null; $('fip_msg').textContent = 'Kamera dimatikan';
+});
+
+function captureDataURL(quality=0.8){
+  if(!video || !mediaStream) throw new Error('Kamera belum aktif');
+  const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = 240;
+  const ctx = canvas.getContext('2d'); ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
+/* Enroll handler (use data URL) */
+$('btnCapture').addEventListener('click', async ()=>{
+  const msg = $('fip_msg');
+  if(!mediaStream){ msg.textContent = 'Buka kamera dahulu'; return; }
+  if(!window._CURRENT_USER){ msg.textContent = 'Login dahulu'; return; }
+  msg.textContent = 'Mengambil foto...';
+  try {
+    const dataUrl = captureDataURL(0.8);
+    // ensure data:image prefix (already included)
+    const payload = { user_id: window._CURRENT_USER.user_id || window._CURRENT_USER.uid, image_base64: dataUrl };
+    msg.textContent = 'Mengirim ke server enroll...';
+    const res = await fetch(API_BASE + '/enroll', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const parsed = await safeParseJsonResponse(res);
+    if(!res.ok){
+      msg.textContent = 'Enroll gagal: ' + (parsed.message || JSON.stringify(parsed));
+      console.error('ENROLL FAIL', res.status, parsed);
+      return;
+    }
+    msg.textContent = 'Enroll sukses.';
+    // update Firestore user
+    try { await updateDoc(doc(db,'users', window._CURRENT_USER.user_id), { face_id_status: 'Aktif', updated_at: serverTimestamp() }); } catch(e){ /* ignore */ }
+    $('dash_notif').innerHTML = `<div class="badge">FIP Aktif</div> Pendaftaran wajah berhasil`;
+  } catch(err) {
+    console.error(err);
+    msg.textContent = 'Error enroll: ' + (err.message || err);
+  }
+});
+
+/* ================== SHOP & CART ================== */
+const sampleItems = [
+  { id:'p1', name:'Pulsa 50k', price:50000 },
+  { id:'p2', name:'Voucher Game 100k', price:100000 },
+  { id:'p3', name:'T-shirt FIP', price:75000 }
+];
+let CART = [];
+function renderShop(){
+  const container = $('shop_items');
+  if(!container) return;
+  container.innerHTML = sampleItems.map(it => `<div class="card" style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${it.name}</strong><div class="small">${toCurrency(it.price)}</div></div><div><button onclick="addToCart('${it.id}')">Tambah</button></div></div></div>`).join('');
+  renderCart();
+}
+window.addToCart = function(id){ const it = sampleItems.find(s=>s.id===id); if(it) CART.push(it); renderCart(); }
+function renderCart(){
+  const el = $('cart_list'); if(!el) return;
+  if(CART.length===0) { el.innerHTML = 'Keranjang kosong'; $('cart_total').textContent = toCurrency(0); return; }
+  const rows = CART.map((c,i)=> `<div class="small">${i+1}. ${c.name} — ${toCurrency(c.price)}</div>`).join('');
+  el.innerHTML = rows;
+  const total = CART.reduce((s,i)=> s + i.price,0);
+  $('cart_total').textContent = toCurrency(total);
+}
+$('pay_method').addEventListener('change', (e)=>{ $('pay_fip_opts').classList.toggle('hidden', e.target.value!=='fip'); });
+
+/* ================== FIP PAY: robust flow with pending tx ================== */
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+async function sendFipPayWithRetries(payload, maxRetries = 3){
+  let attempt = 0; let lastErr = null;
+  while(attempt < maxRetries){
+    attempt++;
+    try {
+      const res = await fetch(API_BASE + '/fip_pay', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
+      if(res.status === 422){
+        const body422 = await safeParseJsonResponse(res);
+        return { ok:false, status:422, data: body422 };
+      }
+      if(!res.ok){
+        const body = await safeParseJsonResponse(res);
+        throw new Error(`HTTP ${res.status} ${JSON.stringify(body)}`);
+      }
+      const data = await res.json();
+      return { ok:true, status: res.status, data };
+    } catch(err) {
+      lastErr = err;
+      console.warn('FIP pay attempt', attempt, 'failed', err);
+      if(attempt < maxRetries) await sleep(700 * attempt);
+    }
+  }
+  return { ok:false, status:0, error: lastErr && lastErr.message ? lastErr.message : String(lastErr) };
+}
+
+$('btnCheckout').addEventListener('click', async ()=>{
+  const method = $('pay_method').value;
+  const msg = $('checkout_msg');
+  if(CART.length===0){ msg.textContent='Keranjang kosong'; return; }
+  if(!window._CURRENT_USER){ msg.textContent='Login dulu'; return; }
+  const total = CART.reduce((s,i)=> s + i.price,0);
+  msg.textContent = 'Memproses pembayaran...';
+
+  // create pending tx in Firestore
+  try {
+    const uid = window._CURRENT_USER.user_id;
+    const pendingRef = await addDoc(collection(db,'transactions'), {
+      user_id: uid,
+      amount: -total,
+      type: 'DEBIT',
+      transaction_id: 'SHOP_' + Date.now(),
+      status: 'PENDING',
+      items: CART.map(i=>({id:i.id, name:i.name, price:i.price})),
+      created_at: serverTimestamp()
+    });
+    const pendingDocId = pendingRef.id;
+
+    if(method === 'simulate'){
+      // simple simulation debit
+      const userRef = doc(db,'users', uid);
+      const snap = await getDoc(userRef);
+      const bal = snap.data().saldo || 0;
+      if(bal < total){
+        msg.textContent = 'Saldo tidak cukup';
+        await updateDoc(doc(db,'transactions', pendingDocId), { status: 'FAILED', error: 'Insufficient balance', updated_at: serverTimestamp() });
+        return;
+      }
+      await updateDoc(userRef, { saldo: bal - total });
+      await updateDoc(doc(db,'transactions', pendingDocId), { status: 'SUCCESS', updated_at: serverTimestamp() });
+      CART = []; renderCart(); msg.textContent = 'Pembayaran simulasi berhasil.'; $('dash_balance').textContent = toCurrency(bal - total); await loadUserTransactions(uid);
+      return;
+    }
+
+    // method === 'fip'
+    if(!mediaStream){ msg.textContent='Buka kamera terlebih dahulu (di Dashboard) untuk memverifikasi wajah.'; await updateDoc(doc(db,'transactions', pendingDocId), { status:'FAILED', error:'No camera active', updated_at: serverTimestamp() }); return; }
+
+    const dataUrl = captureDataURL(0.8);
+    const base64 = dataUrl.split('base64,')[1];
+    let imagePayload = dataUrl;
+    if(!imagePayload.startsWith('data:image')) imagePayload = 'data:image/jpeg;base64,' + base64;
+
+    const payload = {
+      user_id: window._CURRENT_USER.user_id || window._CURRENT_USER.uid,
+      image_base64: imagePayload,
+      amount: total.toString(),
+      shop_tx_id: 'SHOP_' + Date.now(),
+      transaction_doc_id: pendingDocId
+    };
+
+    msg.textContent = '🔍 Verifikasi wajah...';
+    const result = await sendFipPayWithRetries(payload, 3);
+
+    if(result.ok){
+      const data = result.data;
+      await updateDoc(doc(db,'transactions', pendingDocId), { status:'SUCCESS', ml_response: data, updated_at: serverTimestamp() });
+      // refresh user balance from Firestore (backend likely already deducted)
+      try {
+        const userSnap = await getDoc(doc(db,'users', window._CURRENT_USER.user_id));
+        $('dash_balance').textContent = toCurrency(userSnap.data().saldo || 0);
+      } catch(e){ /* ignore */ }
+      CART = []; renderCart();
+      msg.textContent = '✅ Pembayaran FIP sukses: ' + (data.message || JSON.stringify(data));
+      $('dash_notif').innerHTML = `<div class="badge">Pembayaran Berhasil</div> Transaksi ${payload.shop_tx_id}`;
+      await loadUserTransactions(window._CURRENT_USER.user_id);
+    } else {
+      const errInfo = result.data || { error: result.error, status: result.status };
+      await updateDoc(doc(db,'transactions', pendingDocId), { status:'FAILED', ml_response: errInfo, updated_at: serverTimestamp() });
+      if(result.status === 422) msg.textContent = 'Pembayaran FIP gagal: Format data tidak sesuai (422). Coba ulang/resize gambar.';
+      else msg.textContent = 'Pembayaran FIP gagal: ' + (errInfo.message || errInfo.error || 'Kesalahan ML / jaringan');
+      $('dash_notif').innerHTML = `<div style="color:red">Pembayaran Gagal</div> Transaksi ${payload.shop_tx_id}`;
+    }
+
+  } catch(err) {
+    console.error('Checkout flow error:', err);
+    msg.textContent = 'Error saat proses pembayaran: ' + (err.message || err);
+  }
+});
+
+/* ================== ADMIN: Load users & topup via server ================== */
+$('btn_admin_get_users')?.addEventListener('click', async ()=>{
+  const el = $('admin_users'); if(!el) return;
+  el.textContent = 'Loading...';
+  try {
+    const snap = await getDocs(collection(db,'users'));
+    const rows = [];
+    snap.forEach(d => rows.push(d.data()));
+    if(rows.length===0) el.textContent = 'Tidak ada user';
+    else el.innerHTML = '<table><thead><tr><th>user_id</th><th>nama</th><th>role</th><th>saldo</th><th>fip</th></tr></thead><tbody>' + rows.map(r=> `<tr><td>${r.user_id}</td><td>${r.nama||'-'}</td><td>${r.role||'-'}</td><td>${r.saldo||0}</td><td>${r.face_id_status||'Nonaktif'}</td></tr>`).join('') + '</tbody></table>';
+  } catch(err){ console.error(err); el.textContent = 'Error: ' + err.message; }
+});
+
+$('btn_admin_topup')?.addEventListener('click', async ()=>{
+  const user = $('admin_topup_user').value.trim();
+  const amount = Number($('admin_topup_amount').value);
+  const el = $('admin_topup_msg');
+  if(!user||!amount){ el.textContent = 'Isi user dan amount'; return; }
+  try {
+    const res = await fetch(API_BASE + '/api/admin/topup', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ user_id: user, amount }) });
+    const data = await res.json();
+    if(res.ok) el.textContent = 'Top-up sukses: ' + (data.message || JSON.stringify(data)); else el.textContent = 'Gagal: ' + (data.message || JSON.stringify(data));
+  } catch(err){ console.error(err); el.textContent = 'Error: ' + err.message; }
+});
+
+/* ================== INIT ================== */
+renderShop();
+renderNav();
+console.log('[FIP] Module ready');
+
+</script>
+
 </body>
 </html>
 
