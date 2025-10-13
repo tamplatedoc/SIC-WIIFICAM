@@ -61,13 +61,17 @@ async function fetchDashboardData() {
         if (inflowDisplay) inflowDisplay.textContent = 'Rp 0';
         if (outflowDisplay) outflowDisplay.textContent = 'Rp 0';
 
+// scripts.js (Bagian fungsi fetchDashboardData)
+
     } catch (error) {
         console.error("Kesalahan saat memuat dashboard. Detail:", error);
-        // Tampilkan pesan error yang lebih berguna jika koneksi gagal
+        
+        // Tampilkan pesan error yang lebih berguna
         if (nameDisplay) nameDisplay.textContent = 'Error Koneksi';
         if (balanceDisplay) balanceDisplay.textContent = 'Gagal Muat';
         
-        alert(`❌ Gagal mengambil data user. Pastikan Node.js dan Ngrok berjalan. Error: ${error.message}`);
+        // 🛑 Peningkatan: Tampilkan URL yang dicoba di pesan alert
+        alert(`❌ Gagal mengambil data user.\nURL Gagal: ${dashboardURL}\nPastikan Node.js dan Ngrok berjalan. Error: ${error.message}`);
     }
 }
 
