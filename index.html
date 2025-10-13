@@ -527,16 +527,26 @@ $('btnCheckout').addEventListener('click', async ()=>{
       CART = []; renderCart(); msg.textContent = 'Pembayaran simulasi berhasil.'; $('dash_balance').textContent = toCurrency(bal - total); await loadUserTransactions(uid);
       return;
     }
-// Pastikan hanya dijalankan setelah user login dan saat proses pembayaran
-if (!window._CURRENT_USER || !pendingDocId || method !== 'fip') {
-  console.log('FIP PAY SKIPPED - Bukan proses FIP atau user belum login');
+// ✅ Allow FIP Pay to proceed as long as user is authenticated
+const activeUserId =
+  (window._CURRENT_USER && window._CURRENT_USER.user_id) ||
+  (auth.currentUser && auth.currentUser.uid) ||
+  null;
+
+if (!activeUserId || !pendingDocId || method !== 'fip') {
+  console.log('⚠ FIP PAY CHECK — User/DocID incomplete. UID fallback:', activeUserId);
+  msg.textContent = 'Login tidak terdeteksi! Silakan login ulang sebelum pembayaran.';
   return;
 }
 
-// method === 'fip'
+// ✅ Kamera wajib aktif
 if (!mediaStream) {
-  msg.textContent = 'Buka kamera terlebih dahulu (di Dashboard) untuk memverifikasi wajah.';
-  await updateDoc(doc(db, 'transactions', pendingDocId), { status: 'FAILED', error: 'No camera active', updated_at: serverTimestamp() });
+  msg.textContent = '📷 Kamera belum aktif — buka kamera dari dashboard terlebih dahulu.';
+  await updateDoc(doc(db, 'transactions', pendingDocId), {
+    status: 'FAILED',
+    error: 'No camera active',
+    updated_at: serverTimestamp()
+  });
   return;
 }
 
@@ -552,62 +562,31 @@ ctx.drawImage(video, 0, 0, 320, 240);
 // ✅ Fungsi kompres gambar dinamis
 const compressImage = (q) => canvas.toDataURL('image/jpeg', q).split(',')[1];
 
-let quality = 0.6; // Default kompresi 60%
+let quality = 0.6;
 let rawBase64 = compressImage(quality);
 let sizeKB = (rawBase64.length * 0.75) / 1024;
 
-// ✅ Otomatis adjust kualitas jika terlalu kecil/besar
+// ✅ Auto adjust kualitas
 if (sizeKB < 20) { quality = 0.85; rawBase64 = compressImage(quality); sizeKB = (rawBase64.length * 0.75) / 1024; }
 if (sizeKB > 160) { quality = 0.4; rawBase64 = compressImage(quality); sizeKB = (rawBase64.length * 0.75) / 1024; }
 
-// ✅ Jika masih di luar batas aman, jangan kirim request ke backend (anti 422)
+// ✅ Jika masih tidak aman, hentikan biar tidak error 422
 if (sizeKB < 15 || sizeKB > 200) {
-  msg.textContent = `⚠ Gambar tidak ideal (${sizeKB.toFixed(1)}KB). Silakan dekatkan/mundur sedikit dan ulangi.`;
+  msg.textContent = `⚠ Gambar tidak ideal (${sizeKB.toFixed(1)}KB). Silakan sesuaikan posisi wajah.`;
   return;
 }
 
 console.log(`✅ FINAL BASE64 SIZE: ${sizeKB.toFixed(1)}KB | Quality: ${quality}`);
 
-// ✅ Payload final ke backend
+// ✅ Payload final — pakai activeUserId langsung
 const payload = {
-  user_id: window._CURRENT_USER.user_id,
+  user_id: activeUserId,
   image_base64: rawBase64,
   amount: total.toString(),
   shop_tx_id: 'SHOP_' + Date.now()
 };
 
 msg.textContent = '🔍 Verifikasi wajah melalui ML...';
-
-// ✅ Kirim ke backend FIP PAY
-const res = await fetch(API_BASE + '/fip_pay', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(payload)
-});
-
-const result = { ok: res.ok, status: res.status, data: await res.json() };
-
-// === RESPONSE HANDLING TETAP SAMA ===
-if (result.ok) {
-  const data = result.data;
-  await updateDoc(doc(db, 'transactions', pendingDocId), { status: 'SUCCESS', ml_response: data, updated_at: serverTimestamp() });
-  try {
-    const userSnap = await getDoc(doc(db, 'users', window._CURRENT_USER.user_id));
-    $('dash_balance').textContent = toCurrency(userSnap.data().saldo || 0);
-  } catch (e) { /* ignore */ }
-
-  CART = []; renderCart();
-  msg.textContent = '✅ Pembayaran FIP sukses: ' + (data.message || JSON.stringify(data));
-  $('dash_notif').innerHTML = `<div class="badge">Pembayaran Berhasil</div> Transaksi ${payload.shop_tx_id}`;
-  await loadUserTransactions(window._CURRENT_USER.user_id);
-} else {
-  const errInfo = result.data || { error: result.error, status: result.status };
-  await updateDoc(doc(db, 'transactions', pendingDocId), { status: 'FAILED', ml_response: errInfo, updated_at: serverTimestamp() });
-  if (result.status === 422) msg.textContent = 'Pembayaran FIP gagal: Format data tidak sesuai (422). Gambar sudah dicek otomatis, coba ubah posisi wajah.';
-  else msg.textContent = 'Pembayaran FIP gagal: ' + (errInfo.message || errInfo.error || 'Kesalahan ML / jaringan');
-  $('dash_notif').innerHTML = `<div style="color:red">Pembayaran Gagal</div> Transaksi ${payload.shop_tx_id}`;
-}
-
 
 /* ================== ADMIN: Load users & topup via server ================== */
 $('btn_admin_get_users')?.addEventListener('click', async ()=>{
