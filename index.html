@@ -1,70 +1,343 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VBank - Beranda</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FIP Test Dashboard</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Roboto, "Segoe UI", Arial; margin: 18px; background:#f6f8fa; color:#111; }
+    h1,h2 { margin: 6px 0 12px; }
+    .card { background:white; border-radius:10px; padding:14px; box-shadow:0 2px 8px rgba(20,20,30,0.06); margin-bottom:14px; }
+    label { display:block; margin:8px 0 4px; font-weight:600; font-size:0.95rem; }
+    input[type="text"], input[type="number"], textarea, select { width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; box-sizing:border-box; }
+    button { margin-top:8px; padding:8px 12px; border-radius:8px; border:0; background:#0b84ff; color:white; font-weight:600; cursor:pointer; }
+    button.secondary { background:#666; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    .col { flex:1 1 300px; min-width:280px; }
+    pre { background:#0f1720; color:#d8f3ff; padding:10px; border-radius:8px; overflow:auto; max-height:320px; }
+    table { width:100%; border-collapse:collapse; margin-top:8px; }
+    th,td { padding:6px 8px; border-bottom:1px solid #eee; text-align:left; font-size:0.9rem;}
+    .small { font-size:0.85rem; color:#555; }
+    .inline { display:inline-block; }
+    .success { color:green; font-weight:700; }
+    .error { color:red; font-weight:700; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <div class="greeting">Halo, <span id="user_name">Budi</span> 👋</div>
-            <div class="menu-icon">
-                <span class="material-icons">notifications</span>
-            </div>
-        </header>
+  <h1>FIP Node.js — Frontend Test Dashboard</h1>
+  <p class="small">Gunakan dashboard ini untuk <strong>enroll</strong>, melakukan <strong>fip_pay</strong>, melihat detail user & transaksi, dan fungsi admin (list users / topup / FIP status). Server default di <code>http://localhost:3000</code>. Pastikan server & ML service berjalan.</p>
 
-        <div class="balance-card">
-            <div class="label">Total Saldo Aktif</div>
-            <div class="amount" id="current_balance">Loading...</div>
-            <div class="details" id="toggle_balance">
-                <span class="material-icons">visibility_off</span>
-                Tampilkan Saldo
-            </div>
-        </div>
+  <div class="row">
 
-        <div class="section">
-            <h2>Laporan Singkat</h2>
-            <div class="report-summary">
-                <div class="inflow">
-                    <span class="material-icons green-icon">trending_up</span>
-                    <p>Pemasukan</p>
-                    <strong id="total_inflow">Rp 0</strong>
-                </div>
-                <div class="outflow">
-                    <span class="material-icons red-icon">trending_down</span>
-                    <p>Pengeluaran</p>
-                    <strong id="total_outflow">Rp 0</strong>
-                </div>
-            </div>
-            <div class="chart-placeholder">
-                
-                Grafik Transaksi Bulan Ini
-            </div>
-        </div>
-
-        <nav class="navbar">
-            <a href="index.html" class="nav-item active">
-                <span class="material-icons">home</span>
-                Beranda
-            </a>
-            <a href="history.html" class="nav-item">
-                <span class="material-icons">history</span>
-                Histori
-            </a>
-            <a href="fip_enroll.html" class="nav-item main-action">
-                <span class="material-icons">qr_code_scanner</span>
-                FIP Pay
-            </a>
-            <a href="profile.html" class="nav-item">
-                <span class="material-icons">person</span>
-                Me
-            </a>
-        </nav>
+    <!-- Root Check -->
+    <div class="col card">
+      <h2>Ping Server</h2>
+      <button id="btnPing">Cek / (root)</button>
+      <div id="pingResult"><small class="small">Hasil akan muncul di bawah.</small></div>
     </div>
 
-    <script src="scripts.js"></script> 
+    <!-- Enroll -->
+    <div class="col card">
+      <h2>1) Enroll Wajah (POST /enroll)</h2>
+      <label>User ID</label>
+      <input id="enroll_user_id" type="text" placeholder="contoh: user001" />
+      <label>Foto (image file)</label>
+      <input id="enroll_image" type="file" accept="image/*" />
+      <button id="btnEnroll">Kirim Enroll</button>
+      <div id="enrollResult"><small class="small">Response enroll...</small></div>
+    </div>
+
+    <!-- FIP Pay -->
+    <div class="col card">
+      <h2>2) FIP Pay (POST /fip_pay)</h2>
+      <label>Photo (untuk match)</label>
+      <input id="pay_image" type="file" accept="image/*" />
+      <label>Jumlah (amount)</label>
+      <input id="pay_amount" type="number" step="0.01" placeholder="10000" />
+      <label>Shop Transaction ID (shop_tx_id)</label>
+      <input id="pay_shoptx" type="text" placeholder="TX12345" />
+      <button id="btnPay">Kirim Pembayaran</button>
+      <div id="payResult"><small class="small">Response pembayaran...</small></div>
+    </div>
+
+  </div>
+
+  <div class="row">
+
+    <!-- User details & transactions -->
+    <div class="col card">
+      <h2>3) Detail User</h2>
+      <label>User ID</label>
+      <input id="detail_user_id" type="text" placeholder="user001" />
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button id="btnGetDetails">Ambil Detail</button>
+        <button id="btnGetTx" class="secondary">Ambil Transaksi</button>
+      </div>
+      <h3>Detail</h3>
+      <pre id="userDetails">-</pre>
+      <h3>Transaksi (recent)</h3>
+      <div id="txContainer">-</div>
+    </div>
+
+    <!-- Admin DBO -->
+    <div class="col card">
+      <h2>4) Admin DBO</h2>
+
+      <section style="margin-bottom:12px;">
+        <button id="btnListUsers">Ambil Semua Pengguna</button>
+        <div id="usersList">-</div>
+      </section>
+
+      <section style="margin-top:12px;">
+        <h3>Top-up</h3>
+        <label>user_id</label>
+        <input id="topup_user_id" type="text" placeholder="user001" />
+        <label>amount</label>
+        <input id="topup_amount" type="number" step="0.01" placeholder="50000" />
+        <button id="btnTopup">Kirim Top-up</button>
+        <div id="topupResult">-</div>
+      </section>
+
+      <section style="margin-top:12px;">
+        <h3>Ubah Status FIP</h3>
+        <label>user_id</label>
+        <input id="status_user_id" type="text" placeholder="user001" />
+        <label>Aksi</label>
+        <select id="status_action">
+          <option value="activate">activate</option>
+          <option value="deactivate">deactivate</option>
+          <option value="delete_face">delete_face</option>
+        </select>
+        <button id="btnFipStatus">Kirim Aksi</button>
+        <div id="statusResult">-</div>
+      </section>
+    </div>
+
+  </div>
+
+
+  <hr style="margin:18px 0" />
+  <div class="card">
+    <h2>Log / Debug</h2>
+    <pre id="logArea">Mulai log...</pre>
+  </div>
+
+<script>
+(() => {
+  const API_BASE = 'https://12e7f5acfe39.ngrok-free.app'; // ganti jika server Anda di host/port berbeda
+
+  const $ = id => document.getElementById(id);
+  const log = (title, obj) => {
+    const area = $('logArea');
+    const ts = new Date().toISOString();
+    area.textContent = \`[\${ts}] \${title}\\n\` + (typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2)) + "\\n\\n" + area.textContent;
+  };
+
+  // helper: file -> base64 (raw tanpa data:* prefix)
+  function fileToBase64Raw(file){
+    return new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onerror = () => rej(new Error('Gagal baca file'));
+      fr.onload = () => {
+        const dataUrl = fr.result || '';
+        // strip data:*/*;base64, prefix jika ada
+        const idx = dataUrl.indexOf('base64,');
+        const b64 = idx >= 0 ? dataUrl.substring(idx + 7) : dataUrl;
+        res(b64);
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  async function safeFetch(path, opts = {}){
+    try {
+      const res = await fetch(API_BASE + path, opts);
+      let data;
+      try { data = await res.json(); } catch(e){ data = await res.text(); }
+      return { ok: res.ok, status: res.status, data };
+    } catch (e) {
+      return { ok:false, status:0, error: e.message || String(e) };
+    }
+  }
+
+  // 1) Ping root
+  $('btnPing').addEventListener('click', async () => {
+    $('pingResult').textContent = 'Menguji...';
+    const r = await safeFetch('/');
+    if (r.ok) {
+      $('pingResult').textContent = JSON.stringify(r.data, null, 2);
+      log('GET /', r.data);
+    } else {
+      $('pingResult').textContent = \`Gagal (status:\${r.status}) \${r.error||''}\`;
+      log('GET / error', r);
+    }
+  });
+
+  // 2) Enroll
+  $('btnEnroll').addEventListener('click', async () => {
+    const user_id = $('enroll_user_id').value.trim();
+    const file = $('enroll_image').files[0];
+    if(!user_id){ alert('Isi user_id'); return; }
+    if(!file){ alert('Pilih file gambar'); return; }
+
+    $('enrollResult').textContent = 'Mengonversi gambar...';
+    try {
+      const b64 = await fileToBase64Raw(file);
+      $('enrollResult').textContent = 'Mengirim enroll ke server...';
+      const payload = { user_id, image_base64: b64 };
+      log('ENROLL payload', { user_id, base64_len: b64.length });
+
+      const r = await safeFetch('/enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (r.ok) {
+        $('enrollResult').textContent = 'Sukses: ' + JSON.stringify(r.data);
+        log('POST /enroll success', r.data);
+      } else {
+        $('enrollResult').textContent = 'Gagal: ' + JSON.stringify(r.data || r.error);
+        log('POST /enroll fail', r);
+      }
+    } catch (e) {
+      $('enrollResult').textContent = 'Error: ' + e.message;
+      log('ENROLL error', e.message);
+    }
+  });
+
+  // 3) FIP Pay
+  $('btnPay').addEventListener('click', async () => {
+    const file = $('pay_image').files[0];
+    const amount = $('pay_amount').value.trim();
+    const shop_tx_id = $('pay_shoptx').value.trim();
+    if (!file || !amount || !shop_tx_id) { alert('Isi semua field pembayaran'); return; }
+
+    $('payResult').textContent = 'Mengonversi gambar...';
+    try {
+      const b64 = await fileToBase64Raw(file);
+      $('payResult').textContent = 'Mengirim permintaan pembayaran...';
+      const payload = { image_base64: b64, amount: amount, shop_tx_id };
+      log('FIP_PAY payload', { shop_tx_id, amount, base64_len: b64.length });
+
+      const r = await safeFetch('/fip_pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (r.ok) {
+        $('payResult').textContent = 'Sukses: ' + JSON.stringify(r.data);
+        log('POST /fip_pay success', r.data);
+      } else {
+        $('payResult').textContent = 'Gagal: ' + JSON.stringify(r.data || r.error);
+        log('POST /fip_pay fail', r);
+      }
+    } catch (e) {
+      $('payResult').textContent = 'Error: ' + e.message;
+      log('FIP_PAY error', e.message);
+    }
+  });
+
+  // 4) Get user details
+  $('btnGetDetails').addEventListener('click', async () => {
+    const uid = $('detail_user_id').value.trim();
+    if (!uid) { alert('Isi user_id'); return; }
+    $('userDetails').textContent = 'Mengambil...';
+    const r = await safeFetch('/api/user/details/' + encodeURIComponent(uid));
+    if (r.ok) {
+      $('userDetails').textContent = JSON.stringify(r.data, null, 2);
+      log('GET /api/user/details', r.data);
+    } else {
+      $('userDetails').textContent = 'Gagal: ' + (r.data ? JSON.stringify(r.data) : r.error);
+      log('GET /api/user/details fail', r);
+    }
+  });
+
+  // 5) Get transactions
+  $('btnGetTx').addEventListener('click', async () => {
+    const uid = $('detail_user_id').value.trim();
+    if (!uid) { alert('Isi user_id'); return; }
+    $('txContainer').textContent = 'Mengambil transaksi...';
+    const r = await safeFetch('/api/user/transactions/' + encodeURIComponent(uid));
+    if (r.ok) {
+      const payload = r.data;
+      if (payload && payload.transactions) {
+        // build table
+        const rows = payload.transactions.map(t => \`<tr><td>\${t.transaction_id||t.id||'-'}</td><td>\${t.type||'-'}</td><td>\${t.amount}</td><td>\${t.timestamp||''}</td></tr>\`).join('');
+        $('txContainer').innerHTML = \`<table><thead><tr><th>ID</th><th>Type</th><th>Amount</th><th>Timestamp</th></tr></thead><tbody>\${rows}</tbody></table><p class="small">Total Inflow: \${payload.totalInflow} — Total Outflow: \${payload.totalOutflow}</p>\`;
+      } else {
+        $('txContainer').textContent = JSON.stringify(payload);
+      }
+      log('GET /api/user/transactions', payload);
+    } else {
+      $('txContainer').textContent = 'Gagal: ' + (r.data ? JSON.stringify(r.data) : r.error);
+      log('GET /api/user/transactions fail', r);
+    }
+  });
+
+  // 6) Admin: list users
+  $('btnListUsers').addEventListener('click', async () => {
+    $('usersList').textContent = 'Mengambil...';
+    const r = await safeFetch('/api/admin/users');
+    if (r.ok && r.data && r.data.users) {
+      const users = r.data.users;
+      const rows = users.map(u => \`<tr><td>\${u.user_id||'-'}</td><td>\${u.nama||'-'}</td><td>\${u.saldo||0}</td><td>\${u.face_id_status||'-'}</td></tr>\`).join('');
+      $('usersList').innerHTML = '<table><thead><tr><th>user_id</th><th>nama</th><th>saldo</th><th>status</th></tr></thead><tbody>' + rows + '</tbody></table>';
+      log('GET /api/admin/users', users);
+    } else {
+      $('usersList').textContent = 'Gagal: ' + (r.data ? JSON.stringify(r.data) : r.error);
+      log('GET /api/admin/users fail', r);
+    }
+  });
+
+  // 7) Admin: topup
+  $('btnTopup').addEventListener('click', async () => {
+    const user_id = $('topup_user_id').value.trim();
+    const amount = $('topup_amount').value.trim();
+    if (!user_id || !amount) { alert('Isi user_id & amount'); return; }
+
+    $('topupResult').textContent = 'Mengirim top-up...';
+    const r = await safeFetch('/api/admin/topup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id, amount })
+    });
+    if (r.ok) {
+      $('topupResult').textContent = 'Sukses: ' + JSON.stringify(r.data);
+      log('POST /api/admin/topup', r.data);
+    } else {
+      $('topupResult').textContent = 'Gagal: ' + (r.data ? JSON.stringify(r.data) : r.error);
+      log('POST /api/admin/topup fail', r);
+    }
+  });
+
+  // 8) Admin: change FIP status
+  $('btnFipStatus').addEventListener('click', async () => {
+    const user_id = $('status_user_id').value.trim();
+    const action = $('status_action').value;
+    if (!user_id) { alert('Isi user_id'); return; }
+
+    $('statusResult').textContent = 'Mengirim aksi...';
+    const r = await safeFetch('/api/admin/fip_status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id, action })
+    });
+    if (r.ok) {
+      $('statusResult').textContent = 'Sukses: ' + JSON.stringify(r.data);
+      log('POST /api/admin/fip_status', r.data);
+    } else {
+      $('statusResult').textContent = 'Gagal: ' + (r.data ? JSON.stringify(r.data) : r.error);
+      log('POST /api/admin/fip_status fail', r);
+    }
+  });
+
+  // initial ping
+  $('btnPing').click();
+
+})();
+</script>
 </body>
 </html>
+
