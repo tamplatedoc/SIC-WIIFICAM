@@ -528,24 +528,43 @@ $('btnCheckout').addEventListener('click', async ()=>{
       return;
     }
 
-    // method === 'fip'
-    if(!mediaStream){ msg.textContent='Buka kamera terlebih dahulu (di Dashboard) untuk memverifikasi wajah.'; await updateDoc(doc(db,'transactions', pendingDocId), { status:'FAILED', error:'No camera active', updated_at: serverTimestamp() }); return; }
+// method === 'fip'
+if(!mediaStream){
+  msg.textContent='Buka kamera terlebih dahulu (di Dashboard) untuk memverifikasi wajah.';
+  await updateDoc(doc(db,'transactions', pendingDocId), { status:'FAILED', error:'No camera active', updated_at: serverTimestamp() });
+  return;
+}
 
-    const dataUrl = captureDataURL(0.8);
-    const base64 = dataUrl.split('base64,')[1];
-    let imagePayload = dataUrl;
-    if(!imagePayload.startsWith('data:image')) imagePayload = 'data:image/jpeg;base64,' + base64;
+// ✅ AMBIL GAMBAR SEKALI SAJA
+const canvas = document.createElement('canvas');
+canvas.width = 320;
+canvas.height = 240;
+canvas.getContext('2d').drawImage(video, 0, 0, 320, 240);
 
-    const payload = {
-      user_id: window._CURRENT_USER.user_id || window._CURRENT_USER.uid,
-      image_base64: imagePayload,
-      amount: total.toString(),
-      shop_tx_id: 'SHOP_' + Date.now(),
-      transaction_doc_id: pendingDocId
-    };
+// ✅ COMPRESS DAN AMBIL RAW BASE64 (TANPA PREFIX)
+const rawBase64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
 
-    msg.textContent = '🔍 Verifikasi wajah...';
-    const result = await sendFipPayWithRetries(payload, 3);
+// ✅ FINAL PAYLOAD SESUAI BACKEND
+const payload = {
+  user_id: window._CURRENT_USER.user_id,  // WAJIB
+  image_base64: rawBase64,                // TANPA PREFIX
+  amount: total.toString(),               // STRING WAJIB
+  shop_tx_id: 'SHOP_' + Date.now()
+};
+
+msg.textContent = '🔍 Verifikasi wajah...';
+
+// ✅ REQUEST
+const res = await fetch(API_BASE + '/fip_pay', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload)
+});
+
+const result = { ok: res.ok, status: res.status, data: await res.json() };
+
+// === RESPONSE HANDLING TETAP SAMA SETELAH INI ===
+
 
     if(result.ok){
       const data = result.data;
