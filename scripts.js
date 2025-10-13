@@ -11,7 +11,6 @@ const CURRENT_USER_ID = 'nasabah_001';
 
 /**
  * Mengambil dan menampilkan data saldo dan nama user dari backend.
- * Menggunakan endpoint /api/user/details/:user_id yang sudah dibuat di server.js.
  */
 async function fetchDashboardData() {
     const dashboardURL = `${API_BASE_URL}/api/user/details/${CURRENT_USER_ID}`;
@@ -41,14 +40,20 @@ async function fetchDashboardData() {
 
         // 1. Update Nama
         if (nameDisplay) {
-            nameDisplay.textContent = user.nama || 'Nasabah VBank';
+            // 🛑 KOREKSI: Ambil nama dari user.nama, jika null, tampilkan 'Nama N/A'
+            nameDisplay.textContent = user.nama || 'Nama N/A'; 
         }
         
         // 2. Update Saldo
         if (balanceDisplay) {
-            const rawBalance = user.saldo || 0;
-            balanceDisplay.dataset.rawBalance = rawBalance; // Simpan saldo asli
-            balanceDisplay.textContent = '*****'; // Default Sembunyi
+            // Saldo diambil dari database, jika null atau undefined, gunakan 0
+            const rawBalance = user.saldo || 0; 
+            
+            // Simpan saldo asli (number) untuk fungsi toggleBalanceVisibility()
+            balanceDisplay.dataset.rawBalance = rawBalance; 
+            
+            // Set tampilan awal sebagai '*****'
+            balanceDisplay.textContent = '*****'; 
         }
         
         // 3. Status Inflow/Outflow (Tetap Rp 0 karena endpoint /details belum menyediakannya)
@@ -59,8 +64,8 @@ async function fetchDashboardData() {
     } catch (error) {
         console.error("Kesalahan saat memuat dashboard. Detail:", error);
         // Tampilkan pesan error yang lebih berguna jika koneksi gagal
-        if (nameDisplay) nameDisplay.textContent = 'Error';
-        if (balanceDisplay) balanceDisplay.textContent = 'Gagal';
+        if (nameDisplay) nameDisplay.textContent = 'Error Koneksi';
+        if (balanceDisplay) balanceDisplay.textContent = 'Gagal Muat';
         
         alert(`❌ Gagal mengambil data user. Pastikan Node.js dan Ngrok berjalan. Error: ${error.message}`);
     }
@@ -70,8 +75,7 @@ async function fetchDashboardData() {
  * Menginisiasi kamera web dan memutar feed-nya di elemen <video>.
  */
 function startCamera() {
-    // Fungsi ini hanya berjalan jika Anda berada di fip_enroll.html,
-    // karena index.html tidak memiliki elemen <video id="webcam_feed">.
+    // Fungsi ini tidak berubah dan hanya untuk inisiasi webcam (opsional di dashboard)
     const video = document.getElementById('webcam_feed');
     if (!video) return; 
 
@@ -99,9 +103,6 @@ async function enrollFace() {
     enrollButton.textContent = "Processing...";
 
     try {
-        // Logika EnrollFace dihilangkan untuk fokus pada perbaikan index.html
-        // Jika Anda ingin menguji enroll, pastikan elemen HTML yang dibutuhkan (video, button) ada.
-        
         alert('Fungsi EnrollFace dipanggil. Implementasi lengkap ada di fip_enroll.html');
 
     } catch (error) {
@@ -123,11 +124,19 @@ function toggleBalanceVisibility() {
     if (!balanceElement) return;
 
     const isHidden = balanceElement.textContent.includes('*****');
-    const rawBalance = parseFloat(balanceElement.dataset.rawBalance); // Ambil saldo asli yang disimpan
+    // Ambil saldo asli yang disimpan (sudah dipastikan number di fetchDashboardData)
+    const rawBalance = parseFloat(balanceElement.dataset.rawBalance); 
 
     if (isHidden) {
-        // Tampilkan Saldo
-        const formattedSaldo = `Rp ${rawBalance.toLocaleString('id-ID', { minimumFractionDigits: 0 })}`;
+        // Tampilkan Saldo dengan format Rupiah (tanpa desimal)
+        // 🛑 KOREKSI: Menggunakan Intl.NumberFormat untuk format Rupiah
+        const formattedSaldo = rawBalance.toLocaleString('id-ID', {
+             style: 'currency', 
+             currency: 'IDR', 
+             minimumFractionDigits: 0,
+             maximumFractionDigits: 0 
+        });
+        
         balanceElement.textContent = formattedSaldo;
         if (iconElement) iconElement.textContent = 'visibility';
     } else {
