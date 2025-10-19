@@ -1,71 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Face Register - VBank</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register Face</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen">
-
-  <h1 class="text-2xl font-bold mb-4">Register Face (ArcFace + Firebase)</h1>
-
-  <input id="serverUrl" class="px-4 py-2 rounded text-black w-96 mb-3" placeholder="http://192.168.43.208:5000">
-  <input id="username" class="px-4 py-2 rounded text-black w-96 mb-3" placeholder="Masukkan nama">
-
-  <button id="startBtn" class="bg-green-500 px-6 py-2 rounded w-96 mb-3">🎥 Start Camera</button>
-  <video id="video" autoplay class="border border-gray-600 rounded mb-4 w-80 h-60"></video>
-  <canvas id="canvas" class="hidden"></canvas>
-
-  <button id="captureBtn" class="bg-blue-500 px-6 py-2 rounded w-96">📤 Capture & Register</button>
-
-  <p id="status" class="mt-4 text-sm text-yellow-300"></p>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+  <div class="bg-white p-6 rounded-lg shadow w-full max-w-md text-center">
+    <h1 class="text-2xl font-bold mb-4">Register Face</h1>
+    <input id="serverUrl" type="text" placeholder="https://xxxx.ngrok-free.app/register_face" class="border p-2 rounded w-full mb-3" />
+    <video id="video" autoplay playsinline class="w-full rounded mb-3"></video>
+    <button id="startBtn" class="bg-blue-500 text-white px-4 py-2 rounded mb-3 w-full">Start Camera</button>
+    <canvas id="canvas" class="hidden"></canvas>
+    <button id="snapBtn" class="bg-green-500 text-white px-4 py-2 rounded mb-3 w-full">Capture & Register</button>
+    <p id="status" class="text-sm text-gray-600"></p>
+  </div>
 
 <script>
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  const status = document.getElementById('status');
-  const startBtn = document.getElementById('startBtn');
-  const captureBtn = document.getElementById('captureBtn');
-  let stream;
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const startBtn = document.getElementById('startBtn');
+const snapBtn = document.getElementById('snapBtn');
+const statusText = document.getElementById('status');
 
-  startBtn.onclick = async () => {
+let stream;
+startBtn.onclick = async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+    statusText.textContent = 'Camera started.';
+  } catch (err) {
+    statusText.textContent = 'Error accessing camera: ' + err.message;
+  }
+};
+
+snapBtn.onclick = async () => {
+  if (!stream) return;
+  const server = document.getElementById('serverUrl').value;
+  if (!server) { statusText.textContent = 'Enter server URL'; return; }
+
+  const ctx = canvas.getContext('2d');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  ctx.drawImage(video, 0, 0);
+  canvas.toBlob(async (blob) => {
+    const formData = new FormData();
+    formData.append('image', blob, 'snapshot.jpg');
+    statusText.textContent = 'Uploading...';
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      video.srcObject = stream;
-      status.innerText = "🎥 Kamera aktif";
-    } catch (err) {
-      alert("Kamera tidak bisa diakses: " + err);
+      const res = await fetch(server, { method: 'POST', body: formData });
+      const data = await res.json();
+      statusText.textContent = JSON.stringify(data);
+    } catch (e) {
+      statusText.textContent = 'Error: ' + e.message;
     }
-  };
-
-  captureBtn.addEventListener('click', async () => {
-    const server = document.getElementById('serverUrl').value.trim();
-    const name = document.getElementById('username').value.trim();
-
-    if (!server || !name) return alert("Isi server URL dan nama!");
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0);
-
-    status.innerText = "📸 Mengambil gambar...";
-    canvas.toBlob(async (blob) => {
-      const formData = new FormData();
-      formData.append('name', name);
-      formData.append('image', blob, "face.jpg");
-
-      try {
-        status.innerText = "📡 Mengirim ke server...";
-        const res = await fetch(server + "/register_face", { method: "POST", body: formData });
-        const data = await res.json();
-        status.innerText = "✅ " + JSON.stringify(data);
-      } catch (err) {
-        status.innerText = "❌ Error: " + err.message;
-      }
-    }, 'image/jpeg', 0.9);
-  });
+  }, 'image/jpeg');
+};
 </script>
-
 </body>
 </html>
