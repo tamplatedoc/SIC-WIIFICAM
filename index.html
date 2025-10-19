@@ -1,82 +1,178 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Face Register - VBank</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Register Wajah - Face Auth</title>
+  <!-- Tailwind CDN (play-cdn) -->
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen">
+<body class="bg-gray-50 text-gray-800 min-h-screen flex items-center justify-center">
+  <div class="w-full max-w-2xl p-6 bg-white rounded-2xl shadow-lg">
+    <h1 class="text-2xl font-semibold mb-4">Register Wajah (Single ID)</h1>
+    <p class="text-sm text-gray-600 mb-4">Website ini menangkap foto dari webcam dan mengirimkan satu foto untuk daftar wajah. ID yang tersimpan bersifat <strong>tetap</strong> (single user).</p>
 
-  <h1 class="text-2xl font-bold mb-4">Register Face (ArcFace + Firebase)</h1>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="space-y-3">
+        <div class="bg-gray-100 rounded overflow-hidden">
+          <video id="video" autoplay playsinline class="w-full h-60 object-cover"></video>
+          <canvas id="canvas" class="hidden"></canvas>
+        </div>
 
-  <div class="mb-4">
-    <label class="block mb-2">Server URL (Example: <code>http://192.168.43.208:5000</code> or ngrok URL):</label>
-    <input id="serverUrl" class="px-4 py-2 rounded text-black w-96" placeholder="http://192.168.43.208:5000">
+        <div class="flex gap-2">
+          <button id="startBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Start Camera</button>
+          <button id="snapBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Ambil Foto</button>
+          <button id="sendBtn" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Register</button>
+          <button id="stopBtn" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Stop</button>
+        </div>
+
+        <div id="status" class="text-sm text-gray-600 mt-2">Status: Idle</div>
+      </div>
+
+      <div class="space-y-3">
+        <div class="p-3 bg-gray-50 rounded h-60 flex items-center justify-center">
+          <img id="preview" alt="Preview" class="max-h-56 rounded shadow" />
+        </div>
+
+        <div class="bg-white p-3 rounded border">
+          <label class="block text-sm text-gray-700">User ID (fixed)</label>
+          <input id="userId" type="text" class="mt-1 w-full p-2 border rounded" value="primary_user" />
+          <p class="text-xs text-gray-500 mt-2">ID akan dikirim bersama foto. Untuk sistem single-user biarkan tetap.</p>
+        </div>
+
+        <div class="bg-white p-3 rounded border">
+          <label class="block text-sm text-gray-700">Server Endpoint</label>
+          <input id="endpoint" type="text" class="mt-1 w-full p-2 border rounded" value="http://192.168.43.208:5000/register_face" />
+          <p class="text-xs text-gray-500 mt-2">Ganti dengan URL ngrok kamu setelah menjalankan: <code>ngrok http 5000</code></p>
+        </div>
+      </div>
+    </div>
+
+    <hr class="my-4" />
+
+    <div class="text-sm text-gray-600">
+      <strong>Catatan cepat:</strong>
+      <ul class="list-disc ml-5 mt-2">
+        <li>Tekan <em>Start Camera</em> untuk mengaktifkan webcam.</li>
+        <li>Gunakan <em>Ambil Foto</em> untuk memotret, lalu klik <em>Register</em> untuk mengirim satu foto.</li>
+        <li>Endpoint default menunjuk ke server lokal; jika menggunakan ngrok, ganti field Endpoint dengan URL ngrok.</li>
+      </ul>
+    </div>
   </div>
-
-  <div class="mb-4">
-    <label class="block mb-2">Name:</label>
-    <input id="username" class="px-4 py-2 rounded text-black w-96" placeholder="Masukkan nama untuk disimpan">
-  </div>
-
-  <video id="video" autoplay class="border border-gray-600 rounded mb-4 w-80 h-60"></video>
-  <canvas id="canvas" class="hidden"></canvas>
-
-  <button id="captureBtn" class="bg-blue-500 px-6 py-2 rounded hover:bg-blue-600">Capture & Register</button>
-
-  <p id="status" class="mt-4 text-sm text-yellow-300"></p>
 
 <script>
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  const status = document.getElementById('status');
-  const captureBtn = document.getElementById('captureBtn');
+// Modified: detect cameras and allow selection
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const preview = document.getElementById('preview');
+const statusEl = document.getElementById('status');
+const startBtn = document.getElementById('startBtn');
+const snapBtn = document.getElementById('snapBtn');
+const sendBtn = document.getElementById('sendBtn');
+const stopBtn = document.getElementById('stopBtn');
+const endpointInput = document.getElementById('endpoint');
+const userIdInput = document.getElementById('userId');
 
-  // 🎥 Minta izin kamera
-  navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+let stream = null;
+let lastBlob = null;
+let currentDeviceId = null;
+
+function setStatus(t){ statusEl.textContent = 'Status: ' + t; }
+
+async function getCameras() {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices.filter(d => d.kind === 'videoinput');
+}
+
+// Create camera selector dynamically
+const camSelect = document.createElement('select');
+camSelect.className = 'p-2 border rounded w-full mt-2';
+userIdInput.parentNode.appendChild(camSelect);
+
+async function populateCameras() {
+  const cams = await getCameras();
+  camSelect.innerHTML = '';
+  cams.forEach((cam, idx) => {
+    const opt = document.createElement('option');
+    opt.value = cam.deviceId;
+    opt.textContent = cam.label || `Camera ${idx+1}`;
+    camSelect.appendChild(opt);
+  });
+  if (cams.length > 0) currentDeviceId = cams[0].deviceId;
+}
+
+camSelect.onchange = () => {
+  currentDeviceId = camSelect.value;
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    startCamera();
+  }
+};
+
+async function startCamera() {
+  try {
+    const constraints = { video: { deviceId: currentDeviceId ? { exact: currentDeviceId } : undefined, width: 640, height: 480 }, audio: false };
+    stream = await navigator.mediaDevices.getUserMedia(constraints);
     video.srcObject = stream;
-  }).catch(err => {
-    alert("Kamera tidak bisa diakses: " + err);
-  });
+    setStatus('Camera started');
+  } catch (e) {
+    console.error(e);
+    setStatus('Camera error: ' + e.message);
+  }
+}
 
-  captureBtn.addEventListener('click', async () => {
-    const server = document.getElementById('serverUrl').value.trim();
-    const name = document.getElementById('username').value.trim();
+startBtn.onclick = async () => {
+  await populateCameras();
+  await startCamera();
+};
 
-    if (!server || !name) {
-      alert("Isi server URL dan nama dulu!");
-      return;
+stopBtn.onclick = () => {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+    stream = null;
+    setStatus('Camera stopped');
+  }
+};
+
+snapBtn.onclick = () => {
+  if (!stream) { setStatus('Camera not started'); return; }
+  const w = video.videoWidth;
+  const h = video.videoHeight;
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, w, h);
+  canvas.toBlob(blob => {
+    lastBlob = blob;
+    preview.src = URL.createObjectURL(blob);
+    setStatus('Photo captured');
+  }, 'image/jpeg', 0.9);
+};
+
+sendBtn.onclick = async () => {
+  if (!lastBlob) { setStatus('No photo to send'); return; }
+  const endpoint = endpointInput.value.trim();
+  if (!endpoint) { setStatus('Set endpoint first'); return; }
+  setStatus('Sending...');
+  const fd = new FormData();
+  const fixedId = userIdInput.value.trim() || 'primary_user';
+  fd.append('name', fixedId);
+  fd.append('image', lastBlob, 'capture.jpg');
+  try {
+    const res = await fetch(endpoint, { method: 'POST', body: fd });
+    const j = await res.json();
+    console.log(j);
+    if (res.ok) {
+      setStatus('Registered: ' + (j.name || j.id || 'OK'));
+    } else {
+      setStatus('Server error: ' + (j.message || JSON.stringify(j)));
     }
-
-    // ✅ Ambil snapshot dari video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0);
-
-    // Convert to Blob
-    status.innerText = "Mengambil gambar...";
-    canvas.toBlob(async (blob) => {
-      const formData = new FormData();
-      formData.append('name', name);
-      formData.append('image', blob, "face.jpg");
-
-      try {
-        status.innerText = "Mengirim ke server...";
-        const res = await fetch(server + "/register_face", {
-          method: "POST",
-          body: formData
-        });
-
-        const data = await res.json();
-        console.log(data);
-        status.innerText = "✅ " + JSON.stringify(data);
-      } catch (err) {
-        status.innerText = "❌ Gagal: " + err;
-      }
-    }, 'image/jpeg', 0.9);
-  });
+  } catch (e) {
+    console.error(e);
+    setStatus('Network/error: ' + e.message);
+  }
+};
 </script>
-
 </body>
 </html>
