@@ -1,626 +1,148 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FIP Virtual Bank — Demo</title>
-  <meta name="description" content="Virtual e-Banking demo with FIP face-enroll, DBO admin and merchant simulator" />
-  <style>
-    :root{--bg:#f7f9fb;--card:#fff;--accent:#0b84ff;--muted:#6b7280}
-    body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);margin:0;color:#0b1220}
-    header{background:linear-gradient(90deg,#073b8c22,transparent);padding:14px 20px;border-bottom:1px solid #e6eef8}
-    .container{max-width:1100px;margin:22px auto;padding:0 18px}
-    .card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 22px rgba(12,24,40,0.06)}
-    h1,h2{margin:6px 0}
-    label{display:block;font-weight:600;margin-top:8px}
-    input,select,textarea,button{font-family:inherit}
-    input,select,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #e6eef8;margin-top:6px}
-    button{background:var(--accent);color:white;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
-    nav a{margin-right:12px;color:var(--muted);text-decoration:none}
-    .row{display:flex;gap:12px}
-    .col{flex:1}
-    .small{font-size:0.9rem;color:var(--muted)}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:8px;border-bottom:1px solid #f1f5f9;text-align:left}
-    .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef6ff;color:#044caa;font-weight:700}
-    footer{margin:36px 0 80px;color:var(--muted);font-size:0.9rem}
-    .flex{display:flex;align-items:center;gap:8px}
-    .center{text-align:center}
-    .hidden{display:none}
-    video{border-radius:8px;border:1px solid #e6eef8}
-    img.avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #fff;box-shadow:0 6px 18px rgba(10,20,40,0.08)}
-  </style>
+  <title>Register Wajah - Face Auth</title>
+  <!-- Tailwind CDN (play-cdn) -->
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <header>
-    <div class="container flex" style="justify-content:space-between;align-items:center">
-      <div>
-        <h1 style="margin:0">FIP Virtual Bank — Demo</h1>
-        <div class="small">Landing • Register / Login • Customer Dashboard • DBO Admin • Merchant</div>
+<body class="bg-gray-50 text-gray-800 min-h-screen flex items-center justify-center">
+  <div class="w-full max-w-2xl p-6 bg-white rounded-2xl shadow-lg">
+    <h1 class="text-2xl font-semibold mb-4">Register Wajah (Single ID)</h1>
+    <p class="text-sm text-gray-600 mb-4">Website ini menangkap foto dari webcam dan mengirimkan satu foto untuk daftar wajah. ID yang tersimpan bersifat <strong>tetap</strong> (single user).</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="space-y-3">
+        <div class="bg-gray-100 rounded overflow-hidden">
+          <video id="video" autoplay playsinline class="w-full h-60 object-cover"></video>
+          <canvas id="canvas" class="hidden"></canvas>
+        </div>
+
+        <div class="flex gap-2">
+          <button id="startBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Start Camera</button>
+          <button id="snapBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Ambil Foto</button>
+          <button id="sendBtn" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Register</button>
+          <button id="stopBtn" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Stop</button>
+        </div>
+
+        <div id="status" class="text-sm text-gray-600 mt-2">Status: Idle</div>
       </div>
-      <nav id="mainNav"></nav>
+
+      <div class="space-y-3">
+        <div class="p-3 bg-gray-50 rounded h-60 flex items-center justify-center">
+          <img id="preview" alt="Preview" class="max-h-56 rounded shadow" />
+        </div>
+
+        <div class="bg-white p-3 rounded border">
+          <label class="block text-sm text-gray-700">User ID (fixed)</label>
+          <input id="userId" type="text" class="mt-1 w-full p-2 border rounded" value="primary_user" />
+          <p class="text-xs text-gray-500 mt-2">ID akan dikirim bersama foto. Untuk sistem single-user biarkan tetap.</p>
+        </div>
+
+        <div class="bg-white p-3 rounded border">
+          <label class="block text-sm text-gray-700">Server Endpoint</label>
+          <input id="endpoint" type="text" class="mt-1 w-full p-2 border rounded" value="https://234c7cca5390.ngrok-free.app/register_face" />
+          <p class="text-xs text-gray-500 mt-2">Ganti dengan URL ngrok kamu setelah menjalankan: <code>ngrok http 5000</code></p>
+        </div>
+      </div>
     </div>
-  </header>
 
-  <main class="container">
+    <hr class="my-4" />
 
-    <!-- Pages (single-file SPA using hash routes) -->
+    <div class="text-sm text-gray-600">
+      <strong>Catatan cepat:</strong>
+      <ul class="list-disc ml-5 mt-2">
+        <li>Tekan <em>Start Camera</em> untuk mengaktifkan webcam.</li>
+        <li>Gunakan <em>Ambil Foto</em> untuk memotret, lalu klik <em>Register</em> untuk mengirim satu foto.</li>
+        <li>Endpoint default menunjuk ke server lokal; jika menggunakan ngrok, ganti field Endpoint dengan URL ngrok.</li>
+      </ul>
+    </div>
+  </div>
 
-    <!-- Landing -->
-    <section id="page_landing" class="card">
-      <h2>Selamat datang di FIP Virtual Bank (Demo)</h2>
-      <p class="small">Aplikasi demo untuk: pendaftaran akun, login, pendaftaran wajah (FIP) via kamera website, dashboard e-banking simple, DBO admin untuk top-up & monitoring, dan merchant sederhana untuk simulasi belanja.</p>
-      <div class="row" style="margin-top:12px">
-        <div class="col card">
-          <h3>Daftar Akun Baru</h3>
-          <label>Nama lengkap</label>
-          <input id="reg_name" placeholder="Ahmad" />
-          <label>Email</label>
-          <input id="reg_email" placeholder="nama@contoh.com" />
-          <label>Password</label>
-          <input id="reg_password" type="password" />
-          <label>Role</label>
-          <select id="reg_role">
-            <option value="customer">Customer</option>
-            <option value="merchant">Merchant</option>
-            <option value="admin">Admin (DBO)</option>
-          </select>
-          <label>Initial Top-up (IDR)</label>
-          <input id="reg_topup" type="number" placeholder="100000" />
-          <button id="btnRegister">Daftar & Simpan ke Firestore</button>
-          <p id="reg_msg" class="small"></p>
-        </div>
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const preview = document.getElementById('preview');
+const statusEl = document.getElementById('status');
+const startBtn = document.getElementById('startBtn');
+const snapBtn = document.getElementById('snapBtn');
+const sendBtn = document.getElementById('sendBtn');
+const stopBtn = document.getElementById('stopBtn');
+const endpointInput = document.getElementById('endpoint');
+const userIdInput = document.getElementById('userId');
 
-        <div class="col card">
-          <h3>Login</h3>
-          <label>Email</label>
-          <input id="login_email" />
-          <label>Password</label>
-          <input id="login_password" type="password" />
-          <button id="btnLogin">Masuk</button>
-          <p id="login_msg" class="small"></p>
-        </div>
-      </div>
-    </section>
+let stream = null;
+let lastBlob = null;
 
-    <!-- Customer Dashboard -->
-    <section id="page_dashboard" class="card hidden">
-      <div class="flex" style="justify-content:space-between">
-        <div style="display:flex;gap:12px;align-items:center">
-          <img id="dash_avatar" class="avatar" src="" alt="avatar" />
-          <div>
-            <h2 id="dash_name" style="margin:0">Nama</h2>
-            <div class="small">ID: <span id="dash_uid"></span> • <span id="dash_role" class="badge">Customer</span></div>
-          </div>
-        </div>
-        <div class="center">
-          <div class="small">Saldo Anda</div>
-          <h2 id="dash_balance">Rp 0</h2>
-        </div>
-      </div>
+function setStatus(t){ statusEl.textContent = 'Status: ' + t; }
 
-      <hr />
-
-      <div class="row">
-        <div class="col card">
-          <h3>Transfer / Bayar (Manual)</h3>
-          <label>Tujuan (user_id)</label>
-          <input id="tx_to" placeholder="user001" />
-          <label>Jumlah (IDR)</label>
-          <input id="tx_amount" type="number" />
-          <label>Keterangan</label>
-          <input id="tx_note" />
-          <button id="btnTransfer">Kirim Transfer (simulasi, update Firestore)</button>
-          <p id="tx_msg" class="small"></p>
-        </div>
-
-        <div class="col card">
-          <h3>FIP - Pendaftaran Wajah (Camera)</h3>
-          <p class="small">Gunakan kamera untuk mengambil foto wajah lalu kirim ke server /enroll (server Anda harus aktif pada <code>http://localhost:3000</code> atau ganti baseURL di pengaturan).</p>
-          <video id="camera_preview" width="320" height="240" autoplay muted></video>
-          <div style="margin-top:8px">
-            <button id="btnStartCam">Buka Kamera</button>
-            <button id="btnCapture">Ambil Foto & Enroll</button>
-            <button id="btnStopCam" class="secondary">Tutup Kamera</button>
-          </div>
-          <p id="fip_msg" class="small"></p>
-        </div>
-      </div>
-
-      <hr />
-
-      <div class="row">
-        <div class="col card">
-          <h3>Riwayat Transaksi</h3>
-          <div id="dash_tx">-</div>
-        </div>
-
-        <div class="col card">
-          <h3>Notifikasi</h3>
-          <div id="dash_notif">Belum ada notifikasi</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Merchant Shop -->
-    <section id="page_shop" class="card hidden">
-      <h2>Toko Simulasi</h2>
-      <div class="small">Tambahkan barang ke keranjang, checkout akan memanggil endpoint pembayaran (di backend Anda) atau melakukan simulasi pembayaran.</div>
-      <div style="margin-top:12px" id="shop_items"></div>
-      <hr />
-      <div class="card">
-        <h3>Keranjang</h3>
-        <div id="cart_list">Belum ada item</div>
-        <p class="small">Total: <strong id="cart_total">Rp 0</strong></p>
-        <label>Gunakan metode pembayaran</label>
-        <select id="pay_method"><option value="simulate">Simulasi (Firestore)</option><option value="fip">FIP (POST /fip_pay)</option></select>
-        <div id="pay_fip_opts" class="hidden">
-          <p class="small">Untuk FIP: butuh foto pembeli (camera) yang akan dikirim ke server /fip_pay untuk mencocokkan wajah dan mengurangi saldo.</p>
-        </div>
-        <button id="btnCheckout">Checkout</button>
-        <div id="checkout_msg" class="small"></div>
-      </div>
-    </section>
-
-    <!-- DBO Admin -->
-    <section id="page_admin" class="card hidden">
-      <h2>DBO - Admin Panel</h2>
-      <div class="small">Kelola user, top-up, status FIP, dan pantau transaksi.</div>
-      <div style="margin-top:12px">
-        <button id="btn_admin_get_users">Muat Semua User (Firestore)</button>
-        <div id="admin_users">-</div>
-      </div>
-
-      <div style="margin-top:12px" class="card">
-        <h3>Top-up Cepat</h3>
-        <label>user_id</label>
-        <input id="admin_topup_user" />
-        <label>amount</label>
-        <input id="admin_topup_amount" type="number" />
-        <button id="btn_admin_topup">Kirim Top-up (panggil /api/admin/topup)</button>
-        <div id="admin_topup_msg" class="small"></div>
-      </div>
-    </section>
-
-    <footer>
-      <div class="small">Petunjuk: ganti variable <code>FIREBASE_CONFIG</code> sesuai project Anda, dan <code>API_BASE</code> ke alamat server Node.js Anda (default: http://localhost:3000). Pastikan Firebase rules untuk testing mengizinkan read/write (atau gunakan Authentication pada produksi).</div>
-    </footer>
-
-  </main>
-
-  <script type="module">
-/**
- * Full single-module script for:
- * - Firebase init (modular v9)
- * - Register / Login (Auth + Firestore users)
- * - Camera start/stop + capture
- * - Enroll (POST /enroll) with full data URL
- * - Shop checkout with FIP pay (POST /fip_pay) including user_id
- * - Transactions: create PENDING tx doc, update SUCCESS/FAILED
- * - Robust ML error handling and retries
- *
- * Copy-paste into your existing HTML inside <script type="module"> ...
- */
-
-/* ================== CONFIG (edit if perlu) ================== */
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyAya-7QEtbflW7jh_EoPclFBQ43VnrKZrM",
-  authDomain: "rdw-katalog.firebaseapp.com",
-  projectId: "rdw-katalog",
-  storageBucket: "rdw-katalog.firebasestorage.app",
-  messagingSenderId: "506572005524",
-  appId: "1:506572005524:web:43b7d27f2c33a1d4071481"
-};
-const API_BASE = 'https://12e7f5acfe39.ngrok-free.app'; // ganti sesuai env
-
-/* ================== IMPORT FIREBASE (modular) ================== */
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
-import {
-  getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs,
-  query, where, updateDoc, serverTimestamp, orderBy, limit
-} from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
-import {
-  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut
-} from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js';
-
-const app = initializeApp(FIREBASE_CONFIG);
-const db = getFirestore(app);
-const auth = getAuth(app);
-
-/* ================== DOM HELPERS / UTIL ================== */
-const $ = id => document.getElementById(id);
-const log = (...args) => console.log('[FIP]', ...args);
-
-function toCurrency(idr){
-  try{
-    return new Intl.NumberFormat('id-ID', { style:'currency', currency:'IDR' }).format(Number(idr||0));
-  } catch(e) { return 'Rp ' + (idr||0); }
-}
-
-async function safeParseJsonResponse(res){
+startBtn.onclick = async () => {
   try {
-    const txt = await res.text();
-    try { return JSON.parse(txt); } catch { return { raw: txt }; }
-  } catch(e) { return { error: 'cannot-read-response' }; }
-}
-
-/* ================== AUTH: REGISTER & LOGIN ================== */
-$('btnRegister').addEventListener('click', async () => {
-  const name = $('reg_name').value.trim();
-  const email = $('reg_email').value.trim();
-  const password = $('reg_password').value;
-  const role = $('reg_role').value;
-  const topup = Number($('reg_topup').value) || 0;
-  const msg = $('reg_msg');
-  msg.textContent = 'Mendaftarkan...';
-  if(!name || !email || !password) { msg.textContent = 'Isi semua field'; return; }
-  try {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    const uid = cred.user.uid;
-    await setDoc(doc(db,'users',uid), {
-      user_id: uid,
-      nama: name,
-      email: email,
-      role: role,
-      saldo: topup,
-      face_id_status: 'Nonaktif',
-      created_at: serverTimestamp()
-    });
-    if(topup>0){
-      await addDoc(collection(db,'transactions'), {
-        user_id: uid, amount: topup, type:'CREDIT', transaction_id:'TOPUP_' + Date.now(), timestamp: serverTimestamp()
-      });
-    }
-    msg.textContent = 'Registrasi sukses. Login otomatis...';
-    // Auto-login state update
-    await onLoginSuccess({ user_id: uid, nama: name, role, email, saldo: topup });
-  } catch(err) {
-    console.error(err);
-    msg.textContent = 'Error: ' + (err.message || err);
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+    video.srcObject = stream;
+    setStatus('Camera started');
+  } catch (e) {
+    console.error(e);
+    setStatus('Camera error: ' + e.message);
   }
-});
-
-$('btnLogin').addEventListener('click', async () => {
-  const email = $('login_email').value.trim();
-  const password = $('login_password').value;
-  const msg = $('login_msg');
-  msg.textContent = 'Logging in...';
-  try {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    const uid = cred.user.uid;
-    const udoc = await getDoc(doc(db,'users',uid));
-    if(!udoc.exists()) { msg.textContent = 'Akun tidak ditemukan di Firestore.'; return; }
-    const data = udoc.data();
-    await onLoginSuccess({ user_id: uid, ...data });
-    msg.textContent = 'Login sukses.';
-  } catch(err) {
-    console.error(err);
-    msg.textContent = 'Error: ' + (err.message || err);
-  }
-});
-
-async function onLoginSuccess(userData){
-  window._CURRENT_USER = userData;
-  renderNav();
-  location.hash = '#/dashboard';
-  $('dash_name').textContent = userData.nama || userData.email;
-  $('dash_uid').textContent = userData.user_id || userData.uid || '-';
-  $('dash_role').textContent = (userData.role||'customer');
-  $('dash_balance').textContent = toCurrency(userData.saldo||0);
-  $('dash_avatar').src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(userData.nama || userData.email) + '&background=0b84ff&color=fff&size=128';
-  await loadUserTransactions(userData.user_id || userData.uid);
-}
-
-async function doLogout(){
-  await signOut(auth).catch(()=>{});
-  window._CURRENT_USER = null;
-  renderNav();
-  location.hash = '#/';
-}
-
-/* ================== NAV / SPA helpers ================== */
-const pages = { '': 'page_landing', '#/': 'page_landing', '#/dashboard': 'page_dashboard', '#/shop': 'page_shop', '#/admin': 'page_admin' };
-function showPage(hash){
-  Object.values(pages).forEach(id => { const el = $(id); if(el) el.classList.add('hidden'); });
-  const id = pages[hash] || pages[''];
-  const el = $(id); if(el) el.classList.remove('hidden');
-  renderNav();
-}
-function renderNav(){
-  const nav = $('mainNav'); if(!nav) return;
-  nav.innerHTML = '';
-  const user = window._CURRENT_USER || null;
-  const links = [{t:'Home',h:'#/'}];
-  if(user){ links.push({t:'Dashboard',h:'#/dashboard'},{t:'Shop',h:'#/shop'}); if(user.role==='admin') links.push({t:'DBO',h:'#/admin'}); links.push({t:'Logout',h:'#logout'}); }
-  else links.push({t:'Login/Register',h:'#/'});
-  links.forEach(l => {
-    const a = document.createElement('a'); a.href = l.h; a.textContent = l.t; a.style.marginRight='12px';
-    a.onclick = (ev) => { if(l.h==='#logout'){ ev.preventDefault(); doLogout(); return; } setTimeout(()=>showPage(l.h),10); };
-    nav.appendChild(a);
-  });
-}
-window.addEventListener('hashchange', ()=> showPage(location.hash));
-showPage(location.hash);
-
-/* ================== Transactions & History ================== */
-$('btnTransfer')?.addEventListener('click', async ()=>{
-  const to = $('tx_to').value.trim();
-  const amount = Number($('tx_amount').value);
-  const note = $('tx_note').value;
-  const msg = $('tx_msg');
-  if(!window._CURRENT_USER){ msg.textContent='Login dahulu'; return; }
-  if(!to||!amount||amount<=0){ msg.textContent='Tujuan dan jumlah tidak valid'; return; }
-  msg.textContent = 'Memproses transfer...';
-  try {
-    const fromId = window._CURRENT_USER.user_id;
-    const fromRef = doc(db,'users',fromId);
-    const toRef = doc(db,'users',to);
-    const fromSnap = await getDoc(fromRef);
-    const toSnap = await getDoc(toRef);
-    if(!toSnap.exists()){ msg.textContent='Tujuan tidak ditemukan'; return; }
-    const fromBal = (fromSnap.data().saldo||0);
-    if(fromBal < amount){ msg.textContent='Saldo tidak cukup'; return; }
-    await updateDoc(fromRef, { saldo: fromBal - amount });
-    await updateDoc(toRef, { saldo: (toSnap.data().saldo||0) + amount });
-    await addDoc(collection(db,'transactions'), { user_id: fromId, amount: -amount, type: 'DEBIT', transaction_id:'TX_' + Date.now(), note, timestamp: serverTimestamp() });
-    await addDoc(collection(db,'transactions'), { user_id: to, amount: amount, type: 'CREDIT', transaction_id:'TX_' + Date.now(), note, timestamp: serverTimestamp() });
-    msg.textContent = 'Transfer berhasil.';
-    const newBalanceSnap = await getDoc(fromRef);
-    $('dash_balance').textContent = toCurrency(newBalanceSnap.data().saldo||0);
-    await loadUserTransactions(fromId);
-  } catch(err){ console.error(err); $('tx_msg').textContent = 'Error: ' + (err.message||err); }
-});
-
-async function loadUserTransactions(uid){
-  try {
-    const q = query(collection(db,'transactions'), where('user_id','==', uid));
-    const snap = await getDocs(q);
-    const list = []; snap.forEach(d => list.push(d.data()));
-    const el = $('dash_tx');
-    if(!el) return;
-    if(list.length===0){ el.textContent = 'Belum ada transaksi'; return; }
-    el.innerHTML = list.slice(0,20).map(t => `<div class="card" style="margin-bottom:8px"><div><strong>${t.type}</strong> ${t.amount}</div><div class="small">${t.transaction_id||''} • ${t.note||''}</div></div>`).join('');
-  } catch(e){ console.error(e); }
-}
-
-/* ================== CAMERA & ENROLL ================== */
-let mediaStream = null;
-const video = $('camera_preview');
-
-$('btnStartCam').addEventListener('click', async ()=>{
-  try {
-    mediaStream = await navigator.mediaDevices.getUserMedia({ video: { width:320, height:240 }, audio:false });
-    video.srcObject = mediaStream;
-    $('fip_msg').textContent = 'Kamera aktif.';
-  } catch(err) {
-    console.error(err);
-    $('fip_msg').textContent = 'Gagal akses kamera: ' + err.message;
-  }
-});
-$('btnStopCam').addEventListener('click', ()=>{
-  if(mediaStream) mediaStream.getTracks().forEach(t=>t.stop());
-  mediaStream = null; video.srcObject = null; $('fip_msg').textContent = 'Kamera dimatikan';
-});
-
-function captureDataURL(quality=0.8){
-  if(!video || !mediaStream) throw new Error('Kamera belum aktif');
-  const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = 240;
-  const ctx = canvas.getContext('2d'); ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/jpeg', quality);
-}
-
-/* Enroll handler (use data URL) */
-$('btnCapture').addEventListener('click', async ()=>{
-  const msg = $('fip_msg');
-  if(!mediaStream){ msg.textContent = 'Buka kamera dahulu'; return; }
-  if(!window._CURRENT_USER){ msg.textContent = 'Login dahulu'; return; }
-  msg.textContent = 'Mengambil foto...';
-  try {
-    const dataUrl = captureDataURL(0.8);
-    // ensure data:image prefix (already included)
-    const payload = { user_id: window._CURRENT_USER.user_id || window._CURRENT_USER.uid, image_base64: dataUrl };
-    msg.textContent = 'Mengirim ke server enroll...';
-    const res = await fetch(API_BASE + '/enroll', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    const parsed = await safeParseJsonResponse(res);
-    if(!res.ok){
-      msg.textContent = 'Enroll gagal: ' + (parsed.message || JSON.stringify(parsed));
-      console.error('ENROLL FAIL', res.status, parsed);
-      return;
-    }
-    msg.textContent = 'Enroll sukses.';
-    // update Firestore user
-    try { await updateDoc(doc(db,'users', window._CURRENT_USER.user_id), { face_id_status: 'Aktif', updated_at: serverTimestamp() }); } catch(e){ /* ignore */ }
-    $('dash_notif').innerHTML = `<div class="badge">FIP Aktif</div> Pendaftaran wajah berhasil`;
-  } catch(err) {
-    console.error(err);
-    msg.textContent = 'Error enroll: ' + (err.message || err);
-  }
-});
-
-/* ================== SHOP & CART ================== */
-const sampleItems = [
-  { id:'p1', name:'Pulsa 50k', price:50000 },
-  { id:'p2', name:'Voucher Game 100k', price:100000 },
-  { id:'p3', name:'T-shirt FIP', price:75000 }
-];
-let CART = [];
-function renderShop(){
-  const container = $('shop_items');
-  if(!container) return;
-  container.innerHTML = sampleItems.map(it => `<div class="card" style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${it.name}</strong><div class="small">${toCurrency(it.price)}</div></div><div><button onclick="addToCart('${it.id}')">Tambah</button></div></div></div>`).join('');
-  renderCart();
-}
-window.addToCart = function(id){ const it = sampleItems.find(s=>s.id===id); if(it) CART.push(it); renderCart(); }
-function renderCart(){
-  const el = $('cart_list'); if(!el) return;
-  if(CART.length===0) { el.innerHTML = 'Keranjang kosong'; $('cart_total').textContent = toCurrency(0); return; }
-  const rows = CART.map((c,i)=> `<div class="small">${i+1}. ${c.name} — ${toCurrency(c.price)}</div>`).join('');
-  el.innerHTML = rows;
-  const total = CART.reduce((s,i)=> s + i.price,0);
-  $('cart_total').textContent = toCurrency(total);
-}
-$('pay_method').addEventListener('change', (e)=>{ $('pay_fip_opts').classList.toggle('hidden', e.target.value!=='fip'); });
-
-/* ================== FIP PAY: robust flow with pending tx ================== */
-
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-async function sendFipPayWithRetries(payload, maxRetries = 3){
-  let attempt = 0; let lastErr = null;
-  while(attempt < maxRetries){
-    attempt++;
-    try {
-      const res = await fetch(API_BASE + '/fip_pay', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
-      if(res.status === 422){
-        const body422 = await safeParseJsonResponse(res);
-        return { ok:false, status:422, data: body422 };
-      }
-      if(!res.ok){
-        const body = await safeParseJsonResponse(res);
-        throw new Error(`HTTP ${res.status} ${JSON.stringify(body)}`);
-      }
-      const data = await res.json();
-      return { ok:true, status: res.status, data };
-    } catch(err) {
-      lastErr = err;
-      console.warn('FIP pay attempt', attempt, 'failed', err);
-      if(attempt < maxRetries) await sleep(700 * attempt);
-    }
-  }
-  return { ok:false, status:0, error: lastErr && lastErr.message ? lastErr.message : String(lastErr) };
-}
-
-$('btnCheckout').addEventListener('click', async ()=>{
-  const method = $('pay_method').value;
-  const msg = $('checkout_msg');
-  if(CART.length===0){ msg.textContent='Keranjang kosong'; return; }
-  if(!window._CURRENT_USER){ msg.textContent='Login dulu'; return; }
-  const total = CART.reduce((s,i)=> s + i.price,0);
-  msg.textContent = 'Memproses pembayaran...';
-
-  // create pending tx in Firestore
-  try {
-    const uid = window._CURRENT_USER.user_id;
-    const pendingRef = await addDoc(collection(db,'transactions'), {
-      user_id: uid,
-      amount: -total,
-      type: 'DEBIT',
-      transaction_id: 'SHOP_' + Date.now(),
-      status: 'PENDING',
-      items: CART.map(i=>({id:i.id, name:i.name, price:i.price})),
-      created_at: serverTimestamp()
-    });
-    const pendingDocId = pendingRef.id;
-
-    if(method === 'simulate'){
-      // simple simulation debit
-      const userRef = doc(db,'users', uid);
-      const snap = await getDoc(userRef);
-      const bal = snap.data().saldo || 0;
-      if(bal < total){
-        msg.textContent = 'Saldo tidak cukup';
-        await updateDoc(doc(db,'transactions', pendingDocId), { status: 'FAILED', error: 'Insufficient balance', updated_at: serverTimestamp() });
-        return;
-      }
-      await updateDoc(userRef, { saldo: bal - total });
-      await updateDoc(doc(db,'transactions', pendingDocId), { status: 'SUCCESS', updated_at: serverTimestamp() });
-      CART = []; renderCart(); msg.textContent = 'Pembayaran simulasi berhasil.'; $('dash_balance').textContent = toCurrency(bal - total); await loadUserTransactions(uid);
-      return;
-    }
-// ✅ Allow FIP Pay to proceed as long as user is authenticated
-const activeUserId =
-  (window._CURRENT_USER && window._CURRENT_USER.user_id) ||
-  (auth.currentUser && auth.currentUser.uid) ||
-  null;
-
-if (!activeUserId || !pendingDocId || method !== 'fip') {
-  console.log('⚠ FIP PAY CHECK — User/DocID incomplete. UID fallback:', activeUserId);
-  msg.textContent = 'Login tidak terdeteksi! Silakan login ulang sebelum pembayaran.';
-  return;
-}
-
-// ✅ Kamera wajib aktif
-if (!mediaStream) {
-  msg.textContent = '📷 Kamera belum aktif — buka kamera dari dashboard terlebih dahulu.';
-  await updateDoc(doc(db, 'transactions', pendingDocId), {
-    status: 'FAILED',
-    error: 'No camera active',
-    updated_at: serverTimestamp()
-  });
-  return;
-}
-
-msg.textContent = '📸 Mengambil dan memproses gambar...';
-
-// ✅ Ambil snapshot
-const canvas = document.createElement('canvas');
-const ctx = canvas.getContext('2d');
-canvas.width = 320;
-canvas.height = 240;
-ctx.drawImage(video, 0, 0, 320, 240);
-
-// ✅ Fungsi kompres gambar dinamis
-const compressImage = (q) => canvas.toDataURL('image/jpeg', q).split(',')[1];
-
-let quality = 0.6;
-let rawBase64 = compressImage(quality);
-let sizeKB = (rawBase64.length * 0.75) / 1024;
-
-// ✅ Auto adjust kualitas
-if (sizeKB < 20) { quality = 0.85; rawBase64 = compressImage(quality); sizeKB = (rawBase64.length * 0.75) / 1024; }
-if (sizeKB > 160) { quality = 0.4; rawBase64 = compressImage(quality); sizeKB = (rawBase64.length * 0.75) / 1024; }
-
-// ✅ Jika masih tidak aman, hentikan biar tidak error 422
-if (sizeKB < 15 || sizeKB > 200) {
-  msg.textContent = `⚠ Gambar tidak ideal (${sizeKB.toFixed(1)}KB). Silakan sesuaikan posisi wajah.`;
-  return;
-}
-
-console.log(`✅ FINAL BASE64 SIZE: ${sizeKB.toFixed(1)}KB | Quality: ${quality}`);
-
-// ✅ Payload final — pakai activeUserId langsung
-const payload = {
-  user_id: activeUserId,
-  image_base64: rawBase64,
-  amount: total.toString(),
-  shop_tx_id: 'SHOP_' + Date.now()
 };
 
-msg.textContent = '🔍 Verifikasi wajah melalui ML...';
+stopBtn.onclick = () => {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+    stream = null;
+    setStatus('Camera stopped');
+  }
+};
 
-/* ================== ADMIN: Load users & topup via server ================== */
-$('btn_admin_get_users')?.addEventListener('click', async ()=>{
-  const el = $('admin_users'); if(!el) return;
-  el.textContent = 'Loading...';
+snapBtn.onclick = () => {
+  if (!stream) { setStatus('Camera not started'); return; }
+  const w = video.videoWidth;
+  const h = video.videoHeight;
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, w, h);
+  canvas.toBlob(blob => {
+    lastBlob = blob;
+    preview.src = URL.createObjectURL(blob);
+    setStatus('Photo captured');
+  }, 'image/jpeg', 0.9);
+};
+
+sendBtn.onclick = async () => {
+  if (!lastBlob) { setStatus('No photo to send'); return; }
+  const endpoint = endpointInput.value.trim();
+  if (!endpoint) { setStatus('Set endpoint first'); return; }
+
+  setStatus('Sending...');
+  const fd = new FormData();
+  const fixedId = userIdInput.value.trim() || 'primary_user';
+  fd.append('name', fixedId); // server expects 'name' field in current server.py
+  fd.append('image', lastBlob, 'capture.jpg');
+
   try {
-    const snap = await getDocs(collection(db,'users'));
-    const rows = [];
-    snap.forEach(d => rows.push(d.data()));
-    if(rows.length===0) el.textContent = 'Tidak ada user';
-    else el.innerHTML = '<table><thead><tr><th>user_id</th><th>nama</th><th>role</th><th>saldo</th><th>fip</th></tr></thead><tbody>' + rows.map(r=> `<tr><td>${r.user_id}</td><td>${r.nama||'-'}</td><td>${r.role||'-'}</td><td>${r.saldo||0}</td><td>${r.face_id_status||'Nonaktif'}</td></tr>`).join('') + '</tbody></table>';
-  } catch(err){ console.error(err); el.textContent = 'Error: ' + err.message; }
-});
+    const res = await fetch(endpoint, { method: 'POST', body: fd });
+    const j = await res.json();
+    console.log(j);
+    if (res.ok) {
+      setStatus('Registered: ' + (j.name || j.id || 'OK'));
+    } else {
+      setStatus('Server error: ' + (j.message || JSON.stringify(j)));
+    }
+  } catch (e) {
+    console.error(e);
+    setStatus('Network/error: ' + e.message);
+  }
+};
 
-$('btn_admin_topup')?.addEventListener('click', async ()=>{
-  const user = $('admin_topup_user').value.trim();
-  const amount = Number($('admin_topup_amount').value);
-  const el = $('admin_topup_msg');
-  if(!user||!amount){ el.textContent = 'Isi user dan amount'; return; }
-  try {
-    const res = await fetch(API_BASE + '/api/admin/topup', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ user_id: user, amount }) });
-    const data = await res.json();
-    if(res.ok) el.textContent = 'Top-up sukses: ' + (data.message || JSON.stringify(data)); else el.textContent = 'Gagal: ' + (data.message || JSON.stringify(data));
-  } catch(err){ console.error(err); el.textContent = 'Error: ' + err.message; }
-});
-
-/* ================== INIT ================== */
-renderShop();
-renderNav();
-console.log('[FIP] Module ready');
-
+// auto-start camera on page load (optional)
+// window.addEventListener('load', () => startBtn.click());
 </script>
-
 </body>
 </html>
+
 
 
