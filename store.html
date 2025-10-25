@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IoT Store</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    header {
+      background-color: #333;
+      color: white;
+      padding: 10px;
+      text-align: center;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .products {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 20px;
+    }
+    .product {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+    .product img {
+      max-width: 100%;
+      height: 150px;
+      object-fit: cover;
+    }
+    .product h3 {
+      margin: 10px 0;
+    }
+    .product p {
+      margin: 5px 0;
+    }
+    button {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 10px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    .cart {
+      margin-top: 20px;
+      border-top: 1px solid #ddd;
+      padding-top: 20px;
+    }
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .admin {
+      margin-top: 20px;
+      border-top: 1px solid #ddd;
+      padding-top: 20px;
+    }
+    .admin input, .admin textarea {
+      width: 100%;
+      margin: 5px 0;
+      padding: 8px;
+    }
+    .auth {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>IoT Store</h1>
+  </header>
+  <div class="container">
+    <div id="auth" class="auth">
+      <h2>Login / Register</h2>
+      <input type="email" id="email" placeholder="Email">
+      <input type="password" id="password" placeholder="Password">
+      <button onclick="register()">Register</button>
+      <button onclick="login()">Login</button>
+      <p id="authError" style="color: red;"></p>
+    </div>
+
+    <div id="store" style="display: none;">
+      <h2>Products</h2>
+      <div class="products" id="products"></div>
+
+      <div class="cart">
+        <h2>Cart</h2>
+        <div id="cartItems"></div>
+        <p>Total: Rp <span id="total">0</span></p>
+        <button onclick="checkout()">Checkout</button>
+      </div>
+
+      <div class="admin">
+        <h2>Add Product (Admin)</h2>
+        <input type="text" id="productName" placeholder="Product Name">
+        <textarea id="productDesc" placeholder="Description"></textarea>
+        <input type="number" id="productPrice" placeholder="Price">
+        <input type="file" id="productImage" accept="image/*">
+        <button onclick="addProduct()">Add Product</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAya-7QEtbflW7jh_EoPclFBQ43VnrKZrM",
+      authDomain: "rdw-katalog.firebaseapp.com",
+      databaseURL: "https://rdw-katalog-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "rdw-katalog",
+      storageBucket: "rdw-katalog.appspot.com",
+      messagingSenderId: "506572005524",
+      appId: "1:506572005524:web:43b7d27f2c33a1d4071481",
+      measurementId: "G-BDQXKFERCR"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    let cart = [];
+    let products = [];
+
+    // Auth
+    window.register = async function() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      try {
+        await createUserWithEmailAndPassword(auth, email, password);
+        alert("Registered!");
+      } catch (error) {
+        document.getElementById("authError").textContent = error.message;
+      }
+    };
+
+    window.login = async function() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        alert("Logged in!");
+      } catch (error) {
+        document.getElementById("authError").textContent = error.message;
+      }
+    };
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        document.getElementById("auth").style.display = "none";
+        document.getElementById("store").style.display = "block";
+        loadProducts();
+        loadCart();
+      } else {
+        document.getElementById("auth").style.display = "block";
+        document.getElementById("store").style.display = "none";
+      }
+    });
+
+    // Load products
+    async function loadProducts() {
+      const querySnapshot = await getDocs(collection(db, "products"));
+      products = [];
+      querySnapshot.forEach((doc) => {
+        products.push({ id: doc.id, ...doc.data() });
+      });
+      displayProducts();
+    }
+
+    function displayProducts() {
+      const productsDiv = document.getElementById("products");
+      productsDiv.innerHTML = "";
+      products.forEach(product => {
+        const productDiv = document.createElement("div");
+        productDiv.className = "product";
+        productDiv.innerHTML = `
+          <img src="${product.imageUrl}" alt="${product.name}">
+          <h3>${product.name}</h3>
+          <p>${product.description}</p>
+          <p>Rp ${product.price.toLocaleString('id-ID')}</p>
+          <button onclick="addToCart('${product.id}')">Add to Cart</button>
+        `;
+        productsDiv.appendChild(productDiv);
+      });
+    }
+
+    // Add to cart
+    window.addToCart = function(productId) {
+      const product = products.find(p => p.id === productId);
+      const existing = cart.find(c => c.id === productId);
+      if (existing) {
+        existing.quantity++;
+      } else {
+        cart.push({ ...product, quantity: 1 });
+      }
+      updateCartDisplay();
+      saveCart();
+    };
+
+    function updateCartDisplay() {
+      const cartDiv = document.getElementById("cartItems");
+      cartDiv.innerHTML = "";
+      let total = 0;
+      cart.forEach(item => {
+        total += item.price * item.quantity;
+        const itemDiv = document.createElement("div");
+        itemDiv.className = "cart-item";
+        itemDiv.innerHTML = `
+          <span>${item.name} x${item.quantity}</span>
+          <span>Rp ${(item.price * item.quantity).toLocaleString('id-ID')}</span>
+        `;
+        cartDiv.appendChild(itemDiv);
+      });
+      document.getElementById("total").textContent = total.toLocaleString('id-ID');
+    }
+
+    function saveCart() {
+      const user = auth.currentUser;
+      if (user) {
+        localStorage.setItem(`cart_${user.uid}`, JSON.stringify(cart));
+      }
+    }
+
+    function loadCart() {
+      const user = auth.currentUser;
+      if (user) {
+        const savedCart = localStorage.getItem(`cart_${user.uid}`);
+        if (savedCart) {
+          cart = JSON.parse(savedCart);
+          updateCartDisplay();
+        }
+      }
+    }
+
+    // Checkout
+    window.checkout = async function() {
+      if (cart.length === 0) {
+        alert("Cart is empty!");
+        return;
+      }
+      const user = auth.currentUser;
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const userData = userDoc.data();
+      const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      if (userData.saldo < total) {
+        alert("Insufficient balance!");
+        return;
+      }
+      // Deduct balance
+      await updateDoc(doc(db, "users", user.uid), { saldo: increment(-total) });
+      // Create nota
+      const nota = `Nota Pembelian\nUser: ${userData.email}\nItems:\n${cart.map(item => `${item.name} x${item.quantity} - Rp ${(item.price * item.quantity).toLocaleString('id-ID')}`).join('\n')}\nTotal: Rp ${total.toLocaleString('id-ID')}\nDate: ${new Date().toLocaleString()}`;
+      await addDoc(collection(db, "notas"), { nota, userId: user.uid, timestamp: new Date() });
+      alert("Checkout successful! Nota saved.");
+      cart = [];
+      updateCartDisplay();
+      saveCart();
+    };
+
+    // Add product (admin)
+    window.addProduct = async function() {
+      const name = document.getElementById("productName").value;
+      const desc = document.getElementById("productDesc").value;
+      const price = parseFloat(document.getElementById("productPrice").value);
+      const imageFile = document.getElementById("productImage").files[0];
+      if (!name || !desc || !price || !imageFile) {
+        alert("All fields required!");
+        return;
+      }
+      const storageRef = ref(storage, `products/${Date.now()}_${imageFile.name}`);
+      await uploadBytes(storageRef, imageFile);
+      const imageUrl = await getDownloadURL(storageRef);
+      await addDoc(collection(db, "products"), { name, description: desc, price, imageUrl });
+      alert("Product added!");
+      loadProducts();
+    };
+
+    // Sample products (run once)
+    async function addSampleProducts() {
+      const samples = [
+        { name: "IoT Sensor Temperature", description: "Monitor suhu ruangan", price: 50000, imageUrl: "https://via.placeholder.com/250?text=Temp+Sensor" },
+        { name: "Smart Light Bulb", description: "Lampu LED yang bisa dikontrol via app", price: 75000, imageUrl: "https://via.placeholder.com/250?text=Smart+Bulb" },
+        { name: "ESP32 Camera Module", description: "Modul kamera untuk proyek IoT", price: 100000, imageUrl: "https://via.placeholder.com/250?text=ESP32+Cam" },
+        { name: "Arduino Uno", description: "Board mikrokontroler populer", price: 150000, imageUrl: "https://via.placeholder.com/250?text=Arduino+Uno" },
+        { name: "Raspberry Pi 4", description: "Komputer mini untuk IoT", price: 500000, imageUrl: "https://via.placeholder.com/250?text=Raspberry+Pi" },
+        { name: "IoT Relay Module", description: "Modul relay untuk kontrol perangkat", price: 30000, imageUrl: "https://via.placeholder.com/250?text=Relay+Module" },
+        { name: "DHT11 Sensor", description: "Sensor suhu dan kelembaban", price: 25000, imageUrl: "https://via.placeholder.com/250?text=DHT11" },
+        { name: "Servo Motor", description: "Motor servo untuk robotik", price: 40000, imageUrl: "https://via.placeholder.com/250?text=Servo+Motor" },
+        { name: "LCD Display 16x2", description: "Display LCD untuk output teks", price: 35000, imageUrl: "https://via.placeholder.com/250?text=LCD+16x2" },
+        { name: "WiFi Module ESP8266", description: "Modul WiFi untuk koneksi internet", price: 45000, imageUrl: "https://via.placeholder.com/250?text=ESP8266" }
+      ];
+      for (const sample of samples) {
+        await addDoc(collection(db, "products"), sample);
+      }
+      alert("Sample products added!");
+    }
+    // Uncomment to add samples: addSampleProducts();
+  </script>
+</body>
+</html>
