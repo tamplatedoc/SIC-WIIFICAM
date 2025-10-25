@@ -1,67 +1,398 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Pendaftaran Wajah - Gemini + Firestore</title>
+  <meta charset="UTF-8">
+  <title>Virtual Bank FIP</title>
+  <style>
+    /* Reset dan font dasar */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    /* Container utama */
+    #auth, #dashboard {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    h2 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #2c3e50;
+      font-weight: 300;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      background: #f9f9f9;
+      transition: border-color 0.3s ease;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #3498db;
+      background: white;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 8px;
+      background: #3498db;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.2s ease;
+    }
+
+    button:hover {
+      background: #2980b9;
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    #authError {
+      color: red;
+      margin-top: 10px;
+    }
+
+    /* Dashboard */
+    .card {
+      background: #ecf0f1;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .card h3 {
+      color: #2c3e50;
+    }
+
+    .card p {
+      font-size: 24px;
+      font-weight: bold;
+      color: #27ae60;
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .actions input {
+      margin-top: 5px;
+    }
+
+    .history {
+      margin-top: 20px;
+      text-align: left;
+    }
+
+    .history ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .history li {
+      background: #f9f9f9;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 5px;
+      border-left: 4px solid #3498db;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      #auth, #dashboard {
+        padding: 20px;
+        margin: 10px;
+      }
+      h2 {
+        font-size: 20px;
+      }
+    }
+  </style>
 </head>
 <body>
-    <h1>Pendaftaran Wajah</h1>
-    <input type="text" id="userId" placeholder="Masukkan ID Pengguna (ex: A-101)">
-    <input type="file" id="faceImage" accept="image/*">
-    <button onclick="enrollFace()">Daftarkan Wajah</button>
-    <p id="statusEnroll"></p>
+  <div id="auth">
+    <h2>Welcome to FIP Bank</h2>
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password (min 6 chars)">
+    <button onclick="register()">Register</button>
+    <button onclick="login()">Login</button>
+    <p id="authError" style="color:red; display:none;"></p>
+  </div>
 
-    <script>
-        // ⚠️ GANTI DENGAN URL PUBLIK DARI OUTPUT COLAB ANDA!
-        const COLAB_URL = "https://c364a6719617.ngrok-free.app"; 
+  <div id="dashboard" style="display:none;">
+    <h2>Dashboard</h2>
+    <div class="card">
+      <h3>Saldo Anda</h3>
+      <p id="saldo">Rp 0</p>
+    </div>
+    <div class="actions">
+      <button onclick="uploadFace()">Upload Wajah</button>
+      <input type="file" id="faceInput" accept="image/*" style="display:none;">
+      <button onclick="requestTopup()">Top-up</button>
+      <input type="number" id="topupAmount" placeholder="Jumlah (Rp)">
+      <button onclick="transfer()">Transfer</button>
+      <input type="email" id="transferEmail" placeholder="Email Penerima">
+      <input type="number" id="transferAmount" placeholder="Jumlah (Rp)">
+    </div>
+    <div class="history">
+      <h3>Riwayat Transaksi</h3>
+      <ul id="transactionList"></ul>
+    </div>
+    <button onclick="logout()">Logout</button>
+  </div>
 
-        // Fungsi konversi file menjadi Base64
-        function fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result.split(',')[1]); // Ambil hanya data base64
-                reader.onerror = error => reject(error);
-            });
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
+  <script>
+    // Firebase config (GANTI DENGAN CONFIG ASLI!)
+    const firebaseConfig = {
+      apiKey: "AIzaSyAya-7QEtbflW7jh_EoPclFBQ43VnrKZrM",
+      authDomain: "rdw-katalog.firebaseapp.com",
+      projectId: "rdw-katalog",
+      storageBucket: "rdw-katalog.firebasestorage.app",
+      messagingSenderId: "506572005524",
+      appId: "1:506572005524:web:43b7d27f2c33a1d4071481"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // Helper
+    function showError(message) {
+      document.getElementById('authError').innerText = message;
+      document.getElementById('authError').style.display = 'block';
+      console.error('Auth Error:', message);
+    }
+
+    function hideError() {
+      document.getElementById('authError').style.display = 'none';
+    }
+
+    // Register
+    function register() {
+      hideError();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!email || !password) {
+        showError('Email dan password wajib diisi.');
+        return;
+      }
+      if (!/\S+@\S+\.\S+/.test(email)) {
+        showError('Format email tidak valid.');
+        return;
+      }
+      if (password.length < 6) {
+        showError('Password minimal 6 karakter.');
+        return;
+      }
+
+      console.log('Attempting to register:', email);
+
+      auth.createUserWithEmailAndPassword(email, password).then((userCredential) => {
+        const user = userCredential.user;
+        console.log('User registered:', user.uid);
+
+        return db.collection('users').doc(user.uid).set({
+          email: email,
+          saldo: 0,
+          faceBase64: null,
+          status: 'pending'
+        });
+      }).then(() => {
+        alert('Registrasi berhasil! Silakan upload wajah.');
+        showDashboard();
+      }).catch(error => {
+        console.error('Registration error:', error);
+        if (error.code === 'auth/email-already-in-use') {
+          showError('Email sudah terdaftar.');
+        } else if (error.code === 'auth/weak-password') {
+          showError('Password terlalu lemah.');
+        } else if (error.code === 'auth/invalid-email') {
+          showError('Email tidak valid.');
+        } else {
+          showError('Error: ' + error.message);
         }
+      });
+    }
 
-        async function enrollFace() {
-            const userId = document.getElementById('userId').value;
-            const fileInput = document.getElementById('faceImage');
-            const statusElement = document.getElementById('statusEnroll');
-            
-            if (!userId || !fileInput.files.length) {
-                statusElement.textContent = "ID Pengguna dan Gambar harus diisi!";
-                return;
-            }
+    // Login
+    function login() {
+      hideError();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
 
-            statusElement.textContent = "Memproses... Harap tunggu.";
+      if (!email || !password) {
+        showError('Email dan password wajib diisi.');
+        return;
+      }
 
-            try {
-                const base64Image = await fileToBase64(fileInput.files[0]);
+      console.log('Attempting to login:', email);
 
-                const response = await fetch(`${COLAB_URL}/enroll`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user_id: userId,
-                        image_base64: base64Image
-                    })
-                });
+      auth.signInWithEmailAndPassword(email, password).then(() => {
+        console.log('Login successful');
+        alert('Login berhasil!');
+        showDashboard();
+      }).catch(error => {
+        console.error('Login error:', error);
+        showError('Login gagal: ' + error.message);
+      });
+    }
 
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    statusElement.textContent = `✅ BERHASIL: ${result.message} Vektor disimpan di Firestore.`;
-                } else {
-                    statusElement.textContent = `❌ GAGAL: ${result.message}`;
-                }
+    function logout() {
+      auth.signOut().then(() => {
+        document.getElementById('auth').style.display = 'block';
+        document.getElementById('dashboard').style.display = 'none';
+      });
+    }
 
-            } catch (error) {
-                statusElement.textContent = `Terjadi kesalahan jaringan: ${error.message}`;
-                console.error(error);
-            }
+    // Dashboard
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        showDashboard();
+      }
+    });
+
+    function showDashboard() {
+      document.getElementById('auth').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      loadSaldo();
+      loadHistory();
+    }
+
+    function loadSaldo() {
+      const user = auth.currentUser;
+      if (user) {
+        db.collection('users').doc(user.uid).get().then(doc => {
+          if (doc.exists) {
+            const saldo = doc.data().saldo || 0;
+            document.getElementById('saldo').innerText = 'Rp ' + saldo.toLocaleString('id-ID');
+          }
+        }).catch(error => console.error('Load saldo error:', error));
+      }
+    }
+
+    function uploadFace() {
+      document.getElementById('faceInput').click();
+      document.getElementById('faceInput').onchange = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const base64 = e.target.result.split(',')[1];
+          const user = auth.currentUser;
+          db.collection('users').doc(user.uid).update({
+            faceBase64: base64
+          }).then(() => alert('Wajah uploaded!')).catch(error => console.error('Upload face error:', error));
+        };
+        reader.readAsDataURL(file);
+      };
+    }
+
+    function requestTopup() {
+      const amount = document.getElementById('topupAmount').value;
+      if (!amount || amount <= 0) {
+        alert('Masukkan jumlah top-up yang valid.');
+        return;
+      }
+      const user = auth.currentUser;
+      db.collection('topupRequests').add({
+        userId: user.uid,
+        amount: parseFloat(amount),
+        status: 'pending',
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => {
+        alert('Top-up requested!');
+        loadHistory();
+      }).catch(error => console.error('Topup error:', error));
+    }
+
+    function transfer() {
+      const email = document.getElementById('transferEmail').value.trim();
+      const amount = document.getElementById('transferAmount').value;
+      if (!email || !amount || amount <= 0) {
+        alert('Masukkan email dan jumlah yang valid.');
+        return;
+      }
+      const user = auth.currentUser;
+      db.collection('users').doc(user.uid).get().then(doc => {
+        const saldo = doc.data().saldo || 0;
+        if (saldo < amount) {
+          alert('Saldo tidak cukup.');
+          return;
         }
-    </script>
+        db.collection('users').where('email', '==', email).get().then(snapshot => {
+          if (snapshot.empty) {
+            alert('Penerima tidak ditemukan.');
+            return;
+          }
+          const receiverId = snapshot.docs[0].id;
+          db.collection('users').doc(user.uid).update({ saldo: saldo - amount });
+          db.collection('users').doc(receiverId).update({ saldo: firebase.firestore.FieldValue.increment(amount) });
+          db.collection('transactions').add({
+            from: user.uid,
+            to: receiverId,
+            amount: parseFloat(amount),
+            type: 'transfer',
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          alert('Transfer berhasil!');
+          loadSaldo();
+          loadHistory();
+        });
+      }).catch(error => console.error('Transfer error:', error));
+    }
+
+    function loadHistory() {
+      const user = auth.currentUser;
+      if (!user) return;
+      db.collection('transactions').where('from', '==', user.uid).orderBy('timestamp', 'desc').limit(5).get().then(snapshot => {
+        const list = document.getElementById('transactionList');
+        list.innerHTML = '';
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const li = document.createElement('li');
+          li.innerText = `Transfer Rp ${data.amount.toLocaleString('id-ID')} ke ${data.to}`;
+          list.appendChild(li);
+        });
+      }).catch(error => console.error('Load history error:', error));
+    }
+  </script>
 </body>
 </html>
