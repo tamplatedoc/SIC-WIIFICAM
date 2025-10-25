@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Virtual Bank FIP</title>
   <style>
     /* Gaya tetap sama seperti sebelumnya */
@@ -103,23 +104,22 @@
   </style>
 </head>
 <body>
-  <div id="auth">
-    <h2>Welcome to FIP Bank</h2>
+    <div id="auth">
+    <h2>Login / Register</h2>
     <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password (min 6 chars)">
+    <input type="password" id="password" placeholder="Password">
     <button onclick="register()">Register</button>
     <button onclick="login()">Login</button>
-    <p id="authError" style="color:red; display:none;"></p>
+    <p id="authError" style="color: red; display: none;"></p>
   </div>
 
-  <div id="dashboard" style="display:none;">
+  <div id="dashboard" style="display: none;">
     <h2>Dashboard</h2>
-    <div class="card">
-      <h3>Saldo Anda</h3>
-      <p id="saldo">Rp 0</p>
-    </div>
-    <button onclick="uploadFace()">Upload Wajah</button>
-    <input type="file" id="faceInput" accept="image/*" style="display:none;">
+    <p>Saldo: <span id="saldo">0</span></p>
+    <button onclick="uploadFace()">Upload Face via Camera</button>
+    <video id="video" autoplay style="display: none;"></video>
+    <canvas id="canvas" style="display: none;"></canvas>
+    <button id="captureBtn" onclick="captureFace()" style="display: none;">Capture Face</button>
     <button onclick="logout()">Logout</button>
   </div>
 
@@ -127,7 +127,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
     // 🔧 Konfigurasi Firebase
     const firebaseConfig = {
@@ -157,6 +157,23 @@
       authError.style.display = "none";
     }
 
+    // Fungsi untuk generate ID user 5 karakter acak (huruf dan angka)
+    function generateUserId() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let result = '';
+      for (let i = 0; i < 5; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    }
+
+    // Fungsi untuk cek apakah ID sudah ada di database
+    async function isUserIdUnique(userId) {
+      const q = query(collection(db, "users"), where("userId", "==", userId));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.empty;
+    }
+
     // 🧑‍💻 Register
     window.register = async function() {
       hideError();
@@ -172,14 +189,21 @@
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
+        // Generate unique 5-character user ID
+        let userId;
+        do {
+          userId = generateUserId();
+        } while (!(await isUserIdUnique(userId)));
+
         await setDoc(doc(db, "users", user.uid), {
           email: email,
           saldo: 0,
           faceBase64: null,
-          status: "pending"
+          status: "pending",
+          userId: userId  // Tambahkan ID user 5 karakter
         });
 
-        alert("Registrasi berhasil!");
+        alert(`Registrasi berhasil! ID User Anda: ${userId}`);
         showDashboard();
       } catch (error) {
         console.error(error);
@@ -208,25 +232,58 @@
       await signOut(auth);
       document.getElementById("auth").style.display = "block";
       document.getElementById("dashboard").style.display = "none";
+      // Stop video stream jika sedang berjalan
+      const video = document.getElementById("video");
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+        video.style.display = "none";
+        document.getElementById("captureBtn").style.display = "none";
+      }
     };
 
-    // 👤 Upload wajah
-    window.uploadFace = function() {
-      document.getElementById("faceInput").click();
-      document.getElementById("faceInput").onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          const base64 = event.target.result.split(",")[1];
-          const user = auth.currentUser;
-          if (!user) return alert("Login terlebih dahulu!");
+    // 👤 Upload wajah menggunakan kamera web
+    window.uploadFace = async function() {
+      const video = document.getElementById("video");
+      const captureBtn = document.getElementById("captureBtn");
 
-          await updateDoc(doc(db, "users", user.uid), { faceBase64: base64 });
-          alert("Wajah berhasil diupload!");
-        };
-        reader.readAsDataURL(file);
-      };
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        video.style.display = "block";
+        captureBtn.style.display = "block";
+      } catch (error) {
+        console.error("Error accessing camera:", error);
+        alert("Tidak dapat mengakses kamera. Pastikan izin kamera diberikan.");
+      }
+    };
+
+    // Fungsi untuk capture face dari video
+    window.captureFace = async function() {
+      const video = document.getElementById("video");
+      const canvas = document.getElementById("canvas");
+      const context = canvas.getContext("2d");
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const base64 = canvas.toDataURL("image/png").split(",")[1];
+
+      const user = auth.currentUser;
+      if (!user) return alert("Login terlebih dahulu!");
+
+      try {
+        await updateDoc(doc(db, "users", user.uid), { faceBase64: base64 });
+        alert("Wajah berhasil diupload!");
+
+        // Stop video stream dan sembunyikan elemen
+        video.srcObject.getTracks().forEach(track => track.stop());
+        video.style.display = "none";
+        document.getElementById("captureBtn").style.display = "none";
+      } catch (error) {
+        console.error("Error uploading face:", error);
+        alert("Gagal upload wajah.");
+      }
     };
 
     // 👁️ Pantau status login
@@ -254,3 +311,5 @@
   </script>
 </body>
 </html>
+
+
