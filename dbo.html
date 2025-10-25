@@ -102,6 +102,22 @@
       background: #9b59b6;
     }
 
+    .login-form {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .login-form input {
+      padding: 8px;
+      margin: 5px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    .admin-panel {
+      display: none;
+    }
+
     @media (max-width: 768px) {
       .container {
         padding: 20px;
@@ -116,68 +132,80 @@
   <div class="container">
     <h1>Digital Banking Officer - Admin Panel</h1>
 
-    <div class="section">
-      <h2>Pending User Approvals</h2>
-      <table id="userTable">
-        <thead>
-          <tr>
-            <th>Email</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <div id="loginSection" class="login-form">
+      <h2>Admin Login</h2>
+      <input type="email" id="adminEmail" placeholder="Admin Email">
+      <input type="password" id="adminPassword" placeholder="Password">
+      <button onclick="adminLogin()">Login</button>
+      <p id="loginError" style="color: red; display: none;"></p>
     </div>
 
-    <div class="section">
-      <h2>Top-up Requests</h2>
-      <table id="topupTable">
-        <thead>
-          <tr>
-            <th>User ID</th>
-            <th>Amount</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <div class="section">
-      <h2>All Users</h2>
-      <div class="search-container">
-        <input type="text" id="searchUserId" placeholder="Search by User ID">
+    <div id="adminPanel" class="admin-panel">
+      <div class="section">
+        <h2>Pending User Approvals</h2>
+        <table id="userTable">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
-      <table id="allUsersTable">
-        <thead>
-          <tr>
-            <th>User ID</th>
-            <th>Email</th>
-            <th>Saldo</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
 
-    <div class="section">
-      <h2>All Transactions</h2>
-      <table id="transactionTable">
-        <thead>
-          <tr>
-            <th>From</th>
-            <th>To</th>
-            <th>Amount</th>
-            <th>Type</th>
-            <th>Timestamp</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <div class="section">
+        <h2>Top-up Requests</h2>
+        <table id="topupTable">
+          <thead>
+            <tr>
+              <th>User ID</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h2>All Users</h2>
+        <div class="search-container">
+          <input type="text" id="searchUserId" placeholder="Search by User ID">
+        </div>
+        <table id="allUsersTable">
+          <thead>
+            <tr>
+              <th>User ID</th>
+              <th>Email</th>
+              <th>Saldo</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h2>All Transactions</h2>
+        <table id="transactionTable">
+          <thead>
+            <tr>
+              <th>From</th>
+              <th>To</th>
+              <th>Amount</th>
+              <th>Type</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <button onclick="adminLogout()">Logout</button>
     </div>
   </div>
 
@@ -199,17 +227,58 @@
 
     // Inisialisasi
     firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // Load data
-    loadPendingUsers();
-    loadTopupRequests();
-    loadAllUsers();
-    loadAllTransactions();
+    const loginError = document.getElementById("loginError");
+
+    // Cek jika admin sudah login
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        document.getElementById("loginSection").style.display = "none";
+        document.getElementById("adminPanel").style.display = "block";
+        loadPendingUsers();
+        loadTopupRequests();
+        loadAllUsers();
+        loadAllTransactions();
+      } else {
+        document.getElementById("loginSection").style.display = "block";
+        document.getElementById("adminPanel").style.display = "none";
+      }
+    });
+
+    // Admin login (gunakan akun admin yang sudah ada di Firebase Auth)
+    function adminLogin() {
+      const email = document.getElementById("adminEmail").value.trim();
+      const password = document.getElementById("adminPassword").value;
+
+      auth.signInWithEmailAndPassword(email, password)
+        .then(() => {
+          hideLoginError();
+        })
+        .catch(error => {
+          showLoginError(error.message);
+        });
+    }
+
+    // Admin logout
+    function adminLogout() {
+      auth.signOut();
+    }
+
+    function showLoginError(message) {
+      loginError.textContent = message;
+      loginError.style.display = "block";
+    }
+
+    function hideLoginError() {
+      loginError.style.display = "none";
+    }
 
     // Fungsi load pending users
     function loadPendingUsers() {
       db.collection('users').where('status', '==', 'pending').onSnapshot(snapshot => {
+        console.log("Pending users loaded:", snapshot.size); // Debug
         const tbody = document.querySelector('#userTable tbody');
         tbody.innerHTML = '';
         snapshot.forEach(doc => {
@@ -244,6 +313,7 @@
     // Load topup requests
     function loadTopupRequests() {
       db.collection('topupRequests').where('status', '==', 'pending').onSnapshot(snapshot => {
+        console.log("Topup requests loaded:", snapshot.size); // Debug
         const tbody = document.querySelector('#topupTable tbody');
         tbody.innerHTML = '';
         snapshot.forEach(doc => {
@@ -282,10 +352,12 @@
     // Load all users
     function loadAllUsers() {
       db.collection('users').onSnapshot(snapshot => {
+        console.log("All users loaded:", snapshot.size); // Debug: cek jumlah user
         const tbody = document.querySelector('#allUsersTable tbody');
         tbody.innerHTML = '';
         snapshot.forEach(doc => {
           const data = doc.data();
+          console.log("User data:", data); // Debug: lihat data user
           const userId = data.userId || 'N/A'; // Jika belum ada userId, tampilkan N/A
           const row = `<tr data-userid="${userId}">
             <td>${userId}</td>
@@ -356,6 +428,7 @@
     // Load all transactions
     function loadAllTransactions() {
       db.collection('transactions').orderBy('timestamp', 'desc').limit(20).onSnapshot(snapshot => {
+        console.log("Transactions loaded:", snapshot.size); // Debug
         const tbody = document.querySelector('#transactionTable tbody');
         tbody.innerHTML = '';
         snapshot.forEach(doc => {
