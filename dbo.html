@@ -43,6 +43,17 @@
       margin-bottom: 10px;
     }
 
+    .search-container {
+      margin-bottom: 10px;
+    }
+
+    .search-container input {
+      padding: 8px;
+      width: 200px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -68,6 +79,7 @@
       color: white;
       cursor: pointer;
       transition: background 0.3s;
+      margin-right: 5px;
     }
 
     button:hover {
@@ -80,6 +92,14 @@
 
     .reject {
       background: #e74c3c;
+    }
+
+    .add {
+      background: #f39c12;
+    }
+
+    .subtract {
+      background: #9b59b6;
     }
 
     @media (max-width: 768px) {
@@ -127,9 +147,13 @@
 
     <div class="section">
       <h2>All Users</h2>
+      <div class="search-container">
+        <input type="text" id="searchUserId" placeholder="Search by User ID">
+      </div>
       <table id="allUsersTable">
         <thead>
           <tr>
+            <th>User ID</th>
             <th>Email</th>
             <th>Saldo</th>
             <th>Status</th>
@@ -262,26 +286,70 @@
         tbody.innerHTML = '';
         snapshot.forEach(doc => {
           const data = doc.data();
-          const row = `<tr>
+          const userId = data.userId || 'N/A'; // Jika belum ada userId, tampilkan N/A
+          const row = `<tr data-userid="${userId}">
+            <td>${userId}</td>
             <td>${data.email}</td>
             <td>Rp ${(data.saldo || 0).toLocaleString('id-ID')}</td>
             <td>${data.status}</td>
             <td>
-              <button onclick="editSaldo('${doc.id}', ${data.saldo || 0})">Edit Saldo</button>
+              <button class="add" onclick="addSaldo('${doc.id}', ${data.saldo || 0})">Add Saldo</button>
+              <button class="subtract" onclick="subtractSaldo('${doc.id}', ${data.saldo || 0})">Subtract Saldo</button>
             </td>
           </tr>`;
           tbody.innerHTML += row;
         });
+        // Setelah load, terapkan filter jika ada input pencarian
+        filterUsers();
       });
     }
 
-    // Edit saldo (simple prompt)
-    function editSaldo(userId, currentSaldo) {
-      const newSaldo = prompt('Enter new saldo:', currentSaldo);
-      if (newSaldo !== null) {
-        db.collection('users').doc(userId).update({ saldo: parseFloat(newSaldo) }).then(() => {
-          alert('Saldo updated!');
+    // Fungsi pencarian berdasarkan User ID
+    document.getElementById('searchUserId').addEventListener('input', filterUsers);
+
+    function filterUsers() {
+      const searchValue = document.getElementById('searchUserId').value.toLowerCase();
+      const rows = document.querySelectorAll('#allUsersTable tbody tr');
+      rows.forEach(row => {
+        const userId = row.getAttribute('data-userid').toLowerCase();
+        if (userId.includes(searchValue)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    // Add saldo
+    function addSaldo(userId, currentSaldo) {
+      const amount = prompt('Enter amount to add:');
+      if (amount !== null && !isNaN(amount) && parseFloat(amount) > 0) {
+        db.collection('users').doc(userId).update({
+          saldo: firebase.firestore.FieldValue.increment(parseFloat(amount))
+        }).then(() => {
+          alert('Saldo added!');
         });
+      } else {
+        alert('Invalid amount.');
+      }
+    }
+
+    // Subtract saldo
+    function subtractSaldo(userId, currentSaldo) {
+      const amount = prompt('Enter amount to subtract:');
+      if (amount !== null && !isNaN(amount) && parseFloat(amount) > 0) {
+        const newSaldo = currentSaldo - parseFloat(amount);
+        if (newSaldo >= 0) {
+          db.collection('users').doc(userId).update({
+            saldo: newSaldo
+          }).then(() => {
+            alert('Saldo subtracted!');
+          });
+        } else {
+          alert('Insufficient balance.');
+        }
+      } else {
+        alert('Invalid amount.');
       }
     }
 
