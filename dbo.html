@@ -209,11 +209,12 @@
     </div>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
-  <script>
-    // Firebase config (sama seperti sebelumnya)
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, orderBy, limit, increment } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyAya-7QEtbflW7jh_EoPclFBQ43VnrKZrM",
       authDomain: "rdw-katalog.firebaseapp.com",
@@ -226,14 +227,14 @@
     };
 
     // Inisialisasi
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
     const loginError = document.getElementById("loginError");
 
     // Cek jika admin sudah login
-    auth.onAuthStateChanged(user => {
+    onAuthStateChanged(auth, (user) => {
       if (user) {
         document.getElementById("loginSection").style.display = "none";
         document.getElementById("adminPanel").style.display = "block";
@@ -247,24 +248,24 @@
       }
     });
 
-    // Admin login (gunakan akun admin yang sudah ada di Firebase Auth)
-    function adminLogin() {
+    // Admin login
+    window.adminLogin = function() {
       const email = document.getElementById("adminEmail").value.trim();
       const password = document.getElementById("adminPassword").value;
 
-      auth.signInWithEmailAndPassword(email, password)
+      signInWithEmailAndPassword(auth, email, password)
         .then(() => {
           hideLoginError();
         })
         .catch(error => {
           showLoginError(error.message);
         });
-    }
+    };
 
     // Admin logout
-    function adminLogout() {
-      auth.signOut();
-    }
+    window.adminLogout = function() {
+      signOut(auth);
+    };
 
     function showLoginError(message) {
       loginError.textContent = message;
@@ -277,18 +278,19 @@
 
     // Fungsi load pending users
     function loadPendingUsers() {
-      db.collection('users').where('status', '==', 'pending').onSnapshot(snapshot => {
+      const q = query(collection(db, 'users'), where('status', '==', 'pending'));
+      onSnapshot(q, (snapshot) => {
         console.log("Pending users loaded:", snapshot.size); // Debug
         const tbody = document.querySelector('#userTable tbody');
         tbody.innerHTML = '';
-        snapshot.forEach(doc => {
-          const data = doc.data();
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
           const row = `<tr>
             <td>${data.email}</td>
             <td>${data.status}</td>
             <td>
-              <button class="approve" onclick="approveUser('${doc.id}')">Approve</button>
-              <button class="reject" onclick="rejectUser('${doc.id}')">Reject</button>
+              <button class="approve" onclick="approveUser('${docSnap.id}')">Approve</button>
+              <button class="reject" onclick="rejectUser('${docSnap.id}')">Reject</button>
             </td>
           </tr>`;
           tbody.innerHTML += row;
@@ -297,34 +299,35 @@
     }
 
     // Approve user
-    function approveUser(userId) {
-      db.collection('users').doc(userId).update({ status: 'approved' }).then(() => {
+    window.approveUser = function(userId) {
+      updateDoc(doc(db, 'users', userId), { status: 'approved' }).then(() => {
         alert('User approved!');
       });
-    }
+    };
 
     // Reject user
-    function rejectUser(userId) {
-      db.collection('users').doc(userId).delete().then(() => {
+    window.rejectUser = function(userId) {
+      deleteDoc(doc(db, 'users', userId)).then(() => {
         alert('User rejected and deleted!');
       });
-    }
+    };
 
     // Load topup requests
     function loadTopupRequests() {
-      db.collection('topupRequests').where('status', '==', 'pending').onSnapshot(snapshot => {
+      const q = query(collection(db, 'topupRequests'), where('status', '==', 'pending'));
+      onSnapshot(q, (snapshot) => {
         console.log("Topup requests loaded:", snapshot.size); // Debug
         const tbody = document.querySelector('#topupTable tbody');
         tbody.innerHTML = '';
-        snapshot.forEach(doc => {
-          const data = doc.data();
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
           const row = `<tr>
             <td>${data.userId}</td>
             <td>Rp ${data.amount.toLocaleString('id-ID')}</td>
             <td>${data.status}</td>
             <td>
-              <button class="approve" onclick="approveTopup('${doc.id}', ${data.amount}, '${data.userId}')">Approve</button>
-              <button class="reject" onclick="rejectTopup('${doc.id}')">Reject</button>
+              <button class="approve" onclick="approveTopup('${docSnap.id}', ${data.amount}, '${data.userId}')">Approve</button>
+              <button class="reject" onclick="rejectTopup('${docSnap.id}')">Reject</button>
             </td>
           </tr>`;
           tbody.innerHTML += row;
@@ -333,30 +336,31 @@
     }
 
     // Approve topup
-    function approveTopup(requestId, amount, userId) {
-      db.collection('users').doc(userId).update({
-        saldo: firebase.firestore.FieldValue.increment(amount)
+    window.approveTopup = function(requestId, amount, userId) {
+      updateDoc(doc(db, 'users', userId), {
+        saldo: increment(amount)
       }).then(() => {
-        db.collection('topupRequests').doc(requestId).update({ status: 'approved' });
+        updateDoc(doc(db, 'topupRequests', requestId), { status: 'approved' });
         alert('Top-up approved!');
       });
-    }
+    };
 
     // Reject topup
-    function rejectTopup(requestId) {
-      db.collection('topupRequests').doc(requestId).update({ status: 'rejected' }).then(() => {
+    window.rejectTopup = function(requestId) {
+      updateDoc(doc(db, 'topupRequests', requestId), { status: 'rejected' }).then(() => {
         alert('Top-up rejected!');
       });
-    }
+    };
 
     // Load all users
     function loadAllUsers() {
-      db.collection('users').onSnapshot(snapshot => {
+      const q = query(collection(db, 'users'));
+      onSnapshot(q, (snapshot) => {
         console.log("All users loaded:", snapshot.size); // Debug: cek jumlah user
         const tbody = document.querySelector('#allUsersTable tbody');
         tbody.innerHTML = '';
-        snapshot.forEach(doc => {
-          const data = doc.data();
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
           console.log("User data:", data); // Debug: lihat data user
           const userId = data.userId || 'N/A'; // Jika belum ada userId, tampilkan N/A
           const row = `<tr data-userid="${userId}">
@@ -365,8 +369,8 @@
             <td>Rp ${(data.saldo || 0).toLocaleString('id-ID')}</td>
             <td>${data.status}</td>
             <td>
-              <button class="add" onclick="addSaldo('${doc.id}', ${data.saldo || 0})">Add Saldo</button>
-              <button class="subtract" onclick="subtractSaldo('${doc.id}', ${data.saldo || 0})">Subtract Saldo</button>
+              <button class="add" onclick="addSaldo('${docSnap.id}', ${data.saldo || 0})">Add Saldo</button>
+              <button class="subtract" onclick="subtractSaldo('${docSnap.id}', ${data.saldo || 0})">Subtract Saldo</button>
             </td>
           </tr>`;
           tbody.innerHTML += row;
@@ -393,26 +397,26 @@
     }
 
     // Add saldo
-    function addSaldo(userId, currentSaldo) {
+    window.addSaldo = function(userId, currentSaldo) {
       const amount = prompt('Enter amount to add:');
       if (amount !== null && !isNaN(amount) && parseFloat(amount) > 0) {
-        db.collection('users').doc(userId).update({
-          saldo: firebase.firestore.FieldValue.increment(parseFloat(amount))
+        updateDoc(doc(db, 'users', userId), {
+          saldo: increment(parseFloat(amount))
         }).then(() => {
           alert('Saldo added!');
         });
       } else {
         alert('Invalid amount.');
       }
-    }
+    };
 
     // Subtract saldo
-    function subtractSaldo(userId, currentSaldo) {
+    window.subtractSaldo = function(userId, currentSaldo) {
       const amount = prompt('Enter amount to subtract:');
       if (amount !== null && !isNaN(amount) && parseFloat(amount) > 0) {
         const newSaldo = currentSaldo - parseFloat(amount);
         if (newSaldo >= 0) {
-          db.collection('users').doc(userId).update({
+          updateDoc(doc(db, 'users', userId), {
             saldo: newSaldo
           }).then(() => {
             alert('Saldo subtracted!');
@@ -423,16 +427,17 @@
       } else {
         alert('Invalid amount.');
       }
-    }
+    };
 
     // Load all transactions
     function loadAllTransactions() {
-      db.collection('transactions').orderBy('timestamp', 'desc').limit(20).onSnapshot(snapshot => {
+      const q = query(collection(db, 'transactions'), orderBy('timestamp', 'desc'), limit(20));
+      onSnapshot(q, (snapshot) => {
         console.log("Transactions loaded:", snapshot.size); // Debug
         const tbody = document.querySelector('#transactionTable tbody');
         tbody.innerHTML = '';
-        snapshot.forEach(doc => {
-          const data = doc.data();
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
           const timestamp = data.timestamp ? data.timestamp.toDate().toLocaleString() : 'N/A';
           const row = `<tr>
             <td>${data.from}</td>
