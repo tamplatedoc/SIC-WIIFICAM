@@ -121,9 +121,8 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAya-7QEtbflW7jh_EoPclFBQ43VnrKZrM",
@@ -139,7 +138,6 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    const storage = getStorage(app);
 
     let cart = [];
     let products = [];
@@ -196,7 +194,7 @@
         const productDiv = document.createElement("div");
         productDiv.className = "product";
         productDiv.innerHTML = `
-          <img src="${product.imageUrl}" alt="${product.name}">
+          <img src="${product.fotoBase64}" alt="${product.name}">
           <h3>${product.name}</h3>
           <p>${product.description}</p>
           <p>Rp ${product.price.toLocaleString('id-ID')}</p>
@@ -268,9 +266,7 @@
         alert("Insufficient balance!");
         return;
       }
-      // Deduct balance
       await updateDoc(doc(db, "users", user.uid), { saldo: increment(-total) });
-      // Create nota
       const nota = `Nota Pembelian\nUser: ${userData.email}\nItems:\n${cart.map(item => `${item.name} x${item.quantity} - Rp ${(item.price * item.quantity).toLocaleString('id-ID')}`).join('\n')}\nTotal: Rp ${total.toLocaleString('id-ID')}\nDate: ${new Date().toLocaleString()}`;
       await addDoc(collection(db, "notas"), { nota, userId: user.uid, timestamp: new Date() });
       alert("Checkout successful! Nota saved.");
@@ -279,7 +275,7 @@
       saveCart();
     };
 
-    // Add product (admin)
+    // Add product (admin) - tanpa storage, gunakan Base64
     window.addProduct = async function() {
       const name = document.getElementById("productName").value;
       const desc = document.getElementById("productDesc").value;
@@ -289,34 +285,21 @@
         alert("All fields required!");
         return;
       }
-      const storageRef = ref(storage, `products/${Date.now()}_${imageFile.name}`);
-      await uploadBytes(storageRef, imageFile);
-      const imageUrl = await getDownloadURL(storageRef);
-      await addDoc(collection(db, "products"), { name, description: desc, price, imageUrl });
-      alert("Product added!");
-      loadProducts();
-    };
 
-    // Sample products (run once)
-    async function addSampleProducts() {
-      const samples = [
-        { name: "IoT Sensor Temperature", description: "Monitor suhu ruangan", price: 50000, imageUrl: "https://via.placeholder.com/250?text=Temp+Sensor" },
-        { name: "Smart Light Bulb", description: "Lampu LED yang bisa dikontrol via app", price: 75000, imageUrl: "https://via.placeholder.com/250?text=Smart+Bulb" },
-        { name: "ESP32 Camera Module", description: "Modul kamera untuk proyek IoT", price: 100000, imageUrl: "https://via.placeholder.com/250?text=ESP32+Cam" },
-        { name: "Arduino Uno", description: "Board mikrokontroler populer", price: 150000, imageUrl: "https://via.placeholder.com/250?text=Arduino+Uno" },
-        { name: "Raspberry Pi 4", description: "Komputer mini untuk IoT", price: 500000, imageUrl: "https://via.placeholder.com/250?text=Raspberry+Pi" },
-        { name: "IoT Relay Module", description: "Modul relay untuk kontrol perangkat", price: 30000, imageUrl: "https://via.placeholder.com/250?text=Relay+Module" },
-        { name: "DHT11 Sensor", description: "Sensor suhu dan kelembaban", price: 25000, imageUrl: "https://via.placeholder.com/250?text=DHT11" },
-        { name: "Servo Motor", description: "Motor servo untuk robotik", price: 40000, imageUrl: "https://via.placeholder.com/250?text=Servo+Motor" },
-        { name: "LCD Display 16x2", description: "Display LCD untuk output teks", price: 35000, imageUrl: "https://via.placeholder.com/250?text=LCD+16x2" },
-        { name: "WiFi Module ESP8266", description: "Modul WiFi untuk koneksi internet", price: 45000, imageUrl: "https://via.placeholder.com/250?text=ESP8266" }
-      ];
-      for (const sample of samples) {
-        await addDoc(collection(db, "products"), sample);
-      }
-      alert("Sample products added!");
-    }
-    // Uncomment to add samples: addSampleProducts();
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const fotoBase64 = e.target.result;
+        await addDoc(collection(db, "products"), { 
+          name, 
+          description: desc, 
+          price, 
+          fotoBase64 
+        });
+        alert("Product added!");
+        loadProducts();
+      };
+      reader.readAsDataURL(imageFile);
+    };
   </script>
 </body>
 </html>
