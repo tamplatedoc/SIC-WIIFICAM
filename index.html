@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Virtual Bank FIP</title>
   <style>
-    /* Reset dan font dasar */
+    /* ... (CSS sama seperti sebelumnya) ... */
     * {
       margin: 0;
       padding: 0;
@@ -22,7 +22,6 @@
       padding: 20px;
     }
 
-    /* Container utama */
     #auth, #dashboard {
       background: white;
       border-radius: 12px;
@@ -84,7 +83,6 @@
       margin-top: 10px;
     }
 
-    /* Dashboard */
     .card {
       background: #ecf0f1;
       border-radius: 8px;
@@ -131,7 +129,6 @@
       border-left: 4px solid #3498db;
     }
 
-    /* Responsive */
     @media (max-width: 480px) {
       #auth, #dashboard {
         padding: 20px;
@@ -179,17 +176,31 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
   <script>
-    // Firebase config (GANTI DENGAN CONFIG ASLI!)
+    // Firebase config (DENGAN NILAI ASLI DARI ANDA)
     const firebaseConfig = {
       apiKey: "AIzaSyAya-7QEtbflW7jh_EoPclFBQ43VnrKZrM",
       authDomain: "rdw-katalog.firebaseapp.com",
+      databaseURL: "https://rdw-katalog-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "rdw-katalog",
       storageBucket: "rdw-katalog.firebasestorage.app",
       messagingSenderId: "506572005524",
-      appId: "1:506572005524:web:43b7d27f2c33a1d4071481"
+      appId: "1:506572005524:web:43b7d27f2c33a1d4071481",
+      measurementId: "G-BDQXKFERCR"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    // Inisialisasi Firebase dengan error handling
+    try {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+        console.log('Firebase initialized successfully');
+      } else {
+        console.log('Firebase already initialized');
+      }
+    } catch (error) {
+      console.error('Firebase initialization error:', error);
+      alert('Error initializing Firebase: ' + error.message + '. Check console for details.');
+    }
+
     const auth = firebase.auth();
     const db = firebase.firestore();
 
@@ -396,3 +407,4 @@
   </script>
 </body>
 </html>
+
