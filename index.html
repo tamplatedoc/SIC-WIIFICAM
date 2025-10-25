@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Virtual Bank FIP</title>
   <style>
-    /* ... (CSS sama seperti sebelumnya) ... */
+    /* Gaya tetap sama seperti sebelumnya */
     * {
       margin: 0;
       padding: 0;
@@ -100,44 +100,6 @@
       font-weight: bold;
       color: #27ae60;
     }
-
-    .actions {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .actions input {
-      margin-top: 5px;
-    }
-
-    .history {
-      margin-top: 20px;
-      text-align: left;
-    }
-
-    .history ul {
-      list-style: none;
-      padding: 0;
-    }
-
-    .history li {
-      background: #f9f9f9;
-      padding: 10px;
-      margin: 5px 0;
-      border-radius: 5px;
-      border-left: 4px solid #3498db;
-    }
-
-    @media (max-width: 480px) {
-      #auth, #dashboard {
-        padding: 20px;
-        margin: 10px;
-      }
-      h2 {
-        font-size: 20px;
-      }
-    }
   </style>
 </head>
 <body>
@@ -156,255 +118,139 @@
       <h3>Saldo Anda</h3>
       <p id="saldo">Rp 0</p>
     </div>
-    <div class="actions">
-      <button onclick="uploadFace()">Upload Wajah</button>
-      <input type="file" id="faceInput" accept="image/*" style="display:none;">
-      <button onclick="requestTopup()">Top-up</button>
-      <input type="number" id="topupAmount" placeholder="Jumlah (Rp)">
-      <button onclick="transfer()">Transfer</button>
-      <input type="email" id="transferEmail" placeholder="Email Penerima">
-      <input type="number" id="transferAmount" placeholder="Jumlah (Rp)">
-    </div>
-    <div class="history">
-      <h3>Riwayat Transaksi</h3>
-      <ul id="transactionList"></ul>
-    </div>
+    <button onclick="uploadFace()">Upload Wajah</button>
+    <input type="file" id="faceInput" accept="image/*" style="display:none;">
     <button onclick="logout()">Logout</button>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
-  <script>
-    // Firebase config (DENGAN NILAI ASLI DARI ANDA)
+  <!-- ✅ Gunakan Modular SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+    // 🔧 Konfigurasi Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyAya-7QEtbflW7jh_EoPclFBQ43VnrKZrM",
       authDomain: "rdw-katalog.firebaseapp.com",
       databaseURL: "https://rdw-katalog-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "rdw-katalog",
-      storageBucket: "rdw-katalog.firebasestorage.app",
+      storageBucket: "rdw-katalog.appspot.com",
       messagingSenderId: "506572005524",
       appId: "1:506572005524:web:43b7d27f2c33a1d4071481",
       measurementId: "G-BDQXKFERCR"
     };
 
-    // Inisialisasi Firebase dengan error handling
-    try {
-      if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-        console.log('Firebase initialized successfully');
-      } else {
-        console.log('Firebase already initialized');
-      }
-    } catch (error) {
-      console.error('Firebase initialization error:', error);
-      alert('Error initializing Firebase: ' + error.message + '. Check console for details.');
-    }
+    // 🚀 Inisialisasi Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+    const authError = document.getElementById("authError");
 
-    // Helper
     function showError(message) {
-      document.getElementById('authError').innerText = message;
-      document.getElementById('authError').style.display = 'block';
-      console.error('Auth Error:', message);
+      authError.textContent = message;
+      authError.style.display = "block";
     }
 
     function hideError() {
-      document.getElementById('authError').style.display = 'none';
+      authError.style.display = "none";
     }
 
-    // Register
-    function register() {
+    // 🧑‍💻 Register
+    window.register = async function() {
       hideError();
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
 
       if (!email || !password) {
-        showError('Email dan password wajib diisi.');
-        return;
-      }
-      if (!/\S+@\S+\.\S+/.test(email)) {
-        showError('Format email tidak valid.');
-        return;
-      }
-      if (password.length < 6) {
-        showError('Password minimal 6 karakter.');
+        showError("Email dan password wajib diisi.");
         return;
       }
 
-      console.log('Attempting to register:', email);
-
-      auth.createUserWithEmailAndPassword(email, password).then((userCredential) => {
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-        console.log('User registered:', user.uid);
 
-        return db.collection('users').doc(user.uid).set({
+        await setDoc(doc(db, "users", user.uid), {
           email: email,
           saldo: 0,
           faceBase64: null,
-          status: 'pending'
+          status: "pending"
         });
-      }).then(() => {
-        alert('Registrasi berhasil! Silakan upload wajah.');
+
+        alert("Registrasi berhasil!");
         showDashboard();
-      }).catch(error => {
-        console.error('Registration error:', error);
-        if (error.code === 'auth/email-already-in-use') {
-          showError('Email sudah terdaftar.');
-        } else if (error.code === 'auth/weak-password') {
-          showError('Password terlalu lemah.');
-        } else if (error.code === 'auth/invalid-email') {
-          showError('Email tidak valid.');
-        } else {
-          showError('Error: ' + error.message);
-        }
-      });
-    }
-
-    // Login
-    function login() {
-      hideError();
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-
-      if (!email || !password) {
-        showError('Email dan password wajib diisi.');
-        return;
+      } catch (error) {
+        console.error(error);
+        showError(error.message);
       }
+    };
 
-      console.log('Attempting to login:', email);
+    // 🔐 Login
+    window.login = async function() {
+      hideError();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
 
-      auth.signInWithEmailAndPassword(email, password).then(() => {
-        console.log('Login successful');
-        alert('Login berhasil!');
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        alert("Login berhasil!");
         showDashboard();
-      }).catch(error => {
-        console.error('Login error:', error);
-        showError('Login gagal: ' + error.message);
-      });
-    }
+      } catch (error) {
+        console.error(error);
+        showError(error.message);
+      }
+    };
 
-    function logout() {
-      auth.signOut().then(() => {
-        document.getElementById('auth').style.display = 'block';
-        document.getElementById('dashboard').style.display = 'none';
-      });
-    }
+    // 🚪 Logout
+    window.logout = async function() {
+      await signOut(auth);
+      document.getElementById("auth").style.display = "block";
+      document.getElementById("dashboard").style.display = "none";
+    };
 
-    // Dashboard
-    auth.onAuthStateChanged(user => {
+    // 👤 Upload wajah
+    window.uploadFace = function() {
+      document.getElementById("faceInput").click();
+      document.getElementById("faceInput").onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const base64 = event.target.result.split(",")[1];
+          const user = auth.currentUser;
+          if (!user) return alert("Login terlebih dahulu!");
+
+          await updateDoc(doc(db, "users", user.uid), { faceBase64: base64 });
+          alert("Wajah berhasil diupload!");
+        };
+        reader.readAsDataURL(file);
+      };
+    };
+
+    // 👁️ Pantau status login
+    onAuthStateChanged(auth, (user) => {
       if (user) {
         showDashboard();
       }
     });
 
     function showDashboard() {
-      document.getElementById('auth').style.display = 'none';
-      document.getElementById('dashboard').style.display = 'block';
+      document.getElementById("auth").style.display = "none";
+      document.getElementById("dashboard").style.display = "block";
       loadSaldo();
-      loadHistory();
     }
 
-    function loadSaldo() {
-      const user = auth.currentUser;
-      if (user) {
-        db.collection('users').doc(user.uid).get().then(doc => {
-          if (doc.exists) {
-            const saldo = doc.data().saldo || 0;
-            document.getElementById('saldo').innerText = 'Rp ' + saldo.toLocaleString('id-ID');
-          }
-        }).catch(error => console.error('Load saldo error:', error));
-      }
-    }
-
-    function uploadFace() {
-      document.getElementById('faceInput').click();
-      document.getElementById('faceInput').onchange = function(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const base64 = e.target.result.split(',')[1];
-          const user = auth.currentUser;
-          db.collection('users').doc(user.uid).update({
-            faceBase64: base64
-          }).then(() => alert('Wajah uploaded!')).catch(error => console.error('Upload face error:', error));
-        };
-        reader.readAsDataURL(file);
-      };
-    }
-
-    function requestTopup() {
-      const amount = document.getElementById('topupAmount').value;
-      if (!amount || amount <= 0) {
-        alert('Masukkan jumlah top-up yang valid.');
-        return;
-      }
-      const user = auth.currentUser;
-      db.collection('topupRequests').add({
-        userId: user.uid,
-        amount: parseFloat(amount),
-        status: 'pending',
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      }).then(() => {
-        alert('Top-up requested!');
-        loadHistory();
-      }).catch(error => console.error('Topup error:', error));
-    }
-
-    function transfer() {
-      const email = document.getElementById('transferEmail').value.trim();
-      const amount = document.getElementById('transferAmount').value;
-      if (!email || !amount || amount <= 0) {
-        alert('Masukkan email dan jumlah yang valid.');
-        return;
-      }
-      const user = auth.currentUser;
-      db.collection('users').doc(user.uid).get().then(doc => {
-        const saldo = doc.data().saldo || 0;
-        if (saldo < amount) {
-          alert('Saldo tidak cukup.');
-          return;
-        }
-        db.collection('users').where('email', '==', email).get().then(snapshot => {
-          if (snapshot.empty) {
-            alert('Penerima tidak ditemukan.');
-            return;
-          }
-          const receiverId = snapshot.docs[0].id;
-          db.collection('users').doc(user.uid).update({ saldo: saldo - amount });
-          db.collection('users').doc(receiverId).update({ saldo: firebase.firestore.FieldValue.increment(amount) });
-          db.collection('transactions').add({
-            from: user.uid,
-            to: receiverId,
-            amount: parseFloat(amount),
-            type: 'transfer',
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          alert('Transfer berhasil!');
-          loadSaldo();
-          loadHistory();
-        });
-      }).catch(error => console.error('Transfer error:', error));
-    }
-
-    function loadHistory() {
+    async function loadSaldo() {
       const user = auth.currentUser;
       if (!user) return;
-      db.collection('transactions').where('from', '==', user.uid).orderBy('timestamp', 'desc').limit(5).get().then(snapshot => {
-        const list = document.getElementById('transactionList');
-        list.innerHTML = '';
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          const li = document.createElement('li');
-          li.innerText = `Transfer Rp ${data.amount.toLocaleString('id-ID')} ke ${data.to}`;
-          list.appendChild(li);
-        });
-      }).catch(error => console.error('Load history error:', error));
+      const docSnap = await getDoc(doc(db, "users", user.uid));
+      if (docSnap.exists()) {
+        const saldo = docSnap.data().saldo || 0;
+        document.getElementById("saldo").innerText = "Rp " + saldo.toLocaleString("id-ID");
+      }
     }
   </script>
 </body>
 </html>
-
