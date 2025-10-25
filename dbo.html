@@ -1,124 +1,309 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DBO - Digital Banking Officer Panel</title>
-    <link rel="stylesheet" href="dbostyles.css">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <meta charset="UTF-8">
+  <title>Digital Banking Officer - Admin</title>
+  <style>
+    /* Minimalis dan elegan */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      color: #333;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      padding: 40px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #2c3e50;
+    }
+
+    .section {
+      margin-bottom: 40px;
+    }
+
+    h2 {
+      color: #3498db;
+      margin-bottom: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+
+    th {
+      background: #ecf0f1;
+      color: #2c3e50;
+    }
+
+    button {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 5px;
+      background: #3498db;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #2980b9;
+    }
+
+    .approve {
+      background: #27ae60;
+    }
+
+    .reject {
+      background: #e74c3c;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+      }
+      table {
+        font-size: 14px;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="d-flex">
-        <div class="sidebar flex-shrink-0 p-3">
-            <h4 class="text-white mb-4">VBank DBO Panel</h4>
-            <ul class="nav nav-pills flex-column mb-auto">
-                <li class="nav-item">
-                    <a href="dbo.html" class="nav-link active">
-                        Manajemen Nasabah
-                    </a>
-                </li>
-                <li>
-                    <a href="#message-section" class="nav-link text-white" onclick="showSection('message-section')">
-                        Kirim Pesan
-                    </a>
-                </li>
-            </ul>
-        </div>
+  <div class="container">
+    <h1>Digital Banking Officer - Admin Panel</h1>
 
-        <div class="content flex-grow-1">
-            <h1 class="mb-4">Dashboard DBO</h1>
-
-            <section id="user-management-section">
-                <div class="card shadow-sm">
-                    <div class="card-header">
-                        Manajemen Data Nasabah & FIP
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Nama</th>
-                                        <th>Saldo</th>
-                                        <th>Status Rek.</th>
-                                        <th>Status FIP</th>
-                                        <th>Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="nasabah-list">
-                                    <tr><td colspan="6" class="text-center">Memuat data...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <section id="message-section" style="display:none;">
-                <div class="card shadow-sm">
-                    <div class="card-header">
-                        Kirim Pesan ke Nasabah
-                    </div>
-                    <div class="card-body">
-                        <form id="send-message-form">
-                            <div class="mb-3">
-                                <label for="targetUserId" class="form-label">ID Nasabah Target</label>
-                                <input type="text" class="form-control" id="targetUserId" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="subject" class="form-label">Subjek Pesan</label>
-                                <input type="text" class="form-control" id="subject" value="Notifikasi DBO Penting">
-                            </div>
-                            <div class="mb-3">
-                                <label for="content" class="form-label">Konten Pesan</label>
-                                <textarea class="form-control" id="content" rows="3" required></textarea>
-                            </div>
-                            <button type="submit" class="btn btn-primary">Kirim Pesan</button>
-                        </form>
-                        <div id="message-status" class="mt-3"></div>
-                    </div>
-                </div>
-            </section>
-        </div>
-    </div>
-    
-    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editModalLabel">Edit Nasabah: <span id="modal-user-id"></span></h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="edit-user-form">
-                        <input type="hidden" id="edit-user-id-input">
-                        <div class="mb-3">
-                            <label for="edit-saldo" class="form-label">Saldo Baru (Rp)</label>
-                            <input type="number" class="form-control" id="edit-saldo" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit-status-rekening" class="form-label">Status Rekening</label>
-                            <select class="form-select" id="edit-status-rekening">
-                                <option value="Aktif">Aktif</option>
-                                <option value="Ditangguhkan">Ditangguhkan</option>
-                                <option value="Mati">Mati</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit-fip-status" class="form-label">Status FIP</label>
-                            <select class="form-select" id="edit-fip-status">
-                                <option value="Aktif">Aktif</option>
-                                <option value="Nonaktif">Nonaktif</option>
-                            </option>
-                        </div>
-                        <button type="submit" class="btn btn-success">Simpan Perubahan</button>
-                    </form>
-                </div>
-            </div>
-        </div>
+    <div class="section">
+      <h2>Pending User Approvals</h2>
+      <table id="userTable">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
 
-    <script src="dboscripts.js"></script>
+    <div class="section">
+      <h2>Top-up Requests</h2>
+      <table id="topupTable">
+        <thead>
+          <tr>
+            <th>User ID</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>All Users</h2>
+      <table id="allUsersTable">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Saldo</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>All Transactions</h2>
+      <table id="transactionTable">
+        <thead>
+          <tr>
+            <th>From</th>
+            <th>To</th>
+            <th>Amount</th>
+            <th>Type</th>
+            <th>Timestamp</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
+  <script>
+    // Firebase config (sama seperti sebelumnya)
+    const firebaseConfig = {
+      apiKey: "AIzaSyAya-7QEtbflW7jh_EoPclFBQ43VnrKZrM",
+      authDomain: "rdw-katalog.firebaseapp.com",
+      databaseURL: "https://rdw-katalog-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "rdw-katalog",
+      storageBucket: "rdw-katalog.firebasestorage.app",
+      messagingSenderId: "506572005524",
+      appId: "1:506572005524:web:43b7d27f2c33a1d4071481",
+      measurementId: "G-BDQXKFERCR"
+    };
+
+    // Inisialisasi
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Load data
+    loadPendingUsers();
+    loadTopupRequests();
+    loadAllUsers();
+    loadAllTransactions();
+
+    // Fungsi load pending users
+    function loadPendingUsers() {
+      db.collection('users').where('status', '==', 'pending').onSnapshot(snapshot => {
+        const tbody = document.querySelector('#userTable tbody');
+        tbody.innerHTML = '';
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const row = `<tr>
+            <td>${data.email}</td>
+            <td>${data.status}</td>
+            <td>
+              <button class="approve" onclick="approveUser('${doc.id}')">Approve</button>
+              <button class="reject" onclick="rejectUser('${doc.id}')">Reject</button>
+            </td>
+          </tr>`;
+          tbody.innerHTML += row;
+        });
+      });
+    }
+
+    // Approve user
+    function approveUser(userId) {
+      db.collection('users').doc(userId).update({ status: 'approved' }).then(() => {
+        alert('User approved!');
+      });
+    }
+
+    // Reject user
+    function rejectUser(userId) {
+      db.collection('users').doc(userId).delete().then(() => {
+        alert('User rejected and deleted!');
+      });
+    }
+
+    // Load topup requests
+    function loadTopupRequests() {
+      db.collection('topupRequests').where('status', '==', 'pending').onSnapshot(snapshot => {
+        const tbody = document.querySelector('#topupTable tbody');
+        tbody.innerHTML = '';
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const row = `<tr>
+            <td>${data.userId}</td>
+            <td>Rp ${data.amount.toLocaleString('id-ID')}</td>
+            <td>${data.status}</td>
+            <td>
+              <button class="approve" onclick="approveTopup('${doc.id}', ${data.amount}, '${data.userId}')">Approve</button>
+              <button class="reject" onclick="rejectTopup('${doc.id}')">Reject</button>
+            </td>
+          </tr>`;
+          tbody.innerHTML += row;
+        });
+      });
+    }
+
+    // Approve topup
+    function approveTopup(requestId, amount, userId) {
+      db.collection('users').doc(userId).update({
+        saldo: firebase.firestore.FieldValue.increment(amount)
+      }).then(() => {
+        db.collection('topupRequests').doc(requestId).update({ status: 'approved' });
+        alert('Top-up approved!');
+      });
+    }
+
+    // Reject topup
+    function rejectTopup(requestId) {
+      db.collection('topupRequests').doc(requestId).update({ status: 'rejected' }).then(() => {
+        alert('Top-up rejected!');
+      });
+    }
+
+    // Load all users
+    function loadAllUsers() {
+      db.collection('users').onSnapshot(snapshot => {
+        const tbody = document.querySelector('#allUsersTable tbody');
+        tbody.innerHTML = '';
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const row = `<tr>
+            <td>${data.email}</td>
+            <td>Rp ${(data.saldo || 0).toLocaleString('id-ID')}</td>
+            <td>${data.status}</td>
+            <td>
+              <button onclick="editSaldo('${doc.id}', ${data.saldo || 0})">Edit Saldo</button>
+            </td>
+          </tr>`;
+          tbody.innerHTML += row;
+        });
+      });
+    }
+
+    // Edit saldo (simple prompt)
+    function editSaldo(userId, currentSaldo) {
+      const newSaldo = prompt('Enter new saldo:', currentSaldo);
+      if (newSaldo !== null) {
+        db.collection('users').doc(userId).update({ saldo: parseFloat(newSaldo) }).then(() => {
+          alert('Saldo updated!');
+        });
+      }
+    }
+
+    // Load all transactions
+    function loadAllTransactions() {
+      db.collection('transactions').orderBy('timestamp', 'desc').limit(20).onSnapshot(snapshot => {
+        const tbody = document.querySelector('#transactionTable tbody');
+        tbody.innerHTML = '';
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const timestamp = data.timestamp ? data.timestamp.toDate().toLocaleString() : 'N/A';
+          const row = `<tr>
+            <td>${data.from}</td>
+            <td>${data.to}</td>
+            <td>Rp ${data.amount.toLocaleString('id-ID')}</td>
+            <td>${data.type}</td>
+            <td>${timestamp}</td>
+          </tr>`;
+          tbody.innerHTML += row;
+        });
+      });
+    }
+  </script>
 </body>
 </html>
