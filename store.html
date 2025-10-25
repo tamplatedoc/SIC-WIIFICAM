@@ -5,60 +5,109 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IoT Store</title>
   <style>
+    /* Futuristic Design: Clean, modern, dengan gradient, shadow, dan animasi halus */
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
       padding: 0;
-      background-color: #f4f4f4;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
     header {
-      background-color: #333;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
       color: white;
-      padding: 10px;
+      padding: 20px;
       text-align: center;
+      width: 100%;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2.5em;
+      font-weight: 300;
     }
     .container {
       max-width: 1200px;
       margin: 20px auto;
-      padding: 20px;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      padding: 30px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(10px);
+      width: 90%;
+    }
+    .search-container {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .search-container input {
+      padding: 12px;
+      width: 300px;
+      border: none;
+      border-radius: 25px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      font-size: 16px;
+      outline: none;
+      transition: box-shadow 0.3s;
+    }
+    .search-container input:focus {
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
     }
     .products {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 25px;
     }
     .product {
-      border: 1px solid #ddd;
-      padding: 10px;
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
       text-align: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s, box-shadow 0.3s;
+      overflow: hidden;
+    }
+    .product:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
     }
     .product img {
       max-width: 100%;
-      height: 150px;
+      height: 180px;
       object-fit: cover;
+      border-radius: 8px;
     }
     .product h3 {
-      margin: 10px 0;
+      margin: 15px 0 10px;
+      font-size: 1.2em;
+      color: #333;
     }
     .product p {
       margin: 5px 0;
+      color: #666;
     }
     button {
-      background-color: #28a745;
+      background: linear-gradient(135deg, #667eea, #764ba2);
       color: white;
       border: none;
-      padding: 10px;
+      padding: 12px 20px;
+      border-radius: 25px;
       cursor: pointer;
+      font-size: 16px;
+      transition: background 0.3s, transform 0.2s;
       margin: 5px;
     }
     button:hover {
-      background-color: #218838;
+      background: linear-gradient(135deg, #5a6fd8, #6a4190);
+      transform: scale(1.05);
     }
     .cart {
-      margin-top: 20px;
+      margin-top: 30px;
       border-top: 1px solid #ddd;
       padding-top: 20px;
     }
@@ -66,30 +115,67 @@
       display: flex;
       justify-content: space-between;
       margin-bottom: 10px;
+      padding: 10px;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+    .checkout-form {
+      margin-top: 10px;
+    }
+    .checkout-form input {
+      padding: 10px;
+      margin: 5px;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      width: 200px;
     }
     .admin {
-      margin-top: 20px;
+      margin-top: 30px;
       border-top: 1px solid #ddd;
       padding-top: 20px;
     }
     .admin input, .admin textarea {
       width: 100%;
-      margin: 5px 0;
-      padding: 8px;
+      margin: 8px 0;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      font-size: 16px;
     }
     .auth {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 30px;
+    }
+    .auth input {
+      padding: 12px;
+      margin: 10px;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      width: 250px;
+    }
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+      }
+      .products {
+        grid-template-columns: 1fr;
+      }
+      .search-container input {
+        width: 80%;
+      }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>IoT Store</h1>
+    <h1>IoT Nexus Store</h1>
   </header>
   <div class="container">
     <div id="auth" class="auth">
-      <h2>Login / Register</h2>
+      <h2>Access Your Account</h2>
       <input type="email" id="email" placeholder="Email">
       <input type="password" id="password" placeholder="Password">
       <button onclick="register()">Register</button>
@@ -98,18 +184,24 @@
     </div>
 
     <div id="store" style="display: none;">
-      <h2>Products</h2>
+      <h2>Explore IoT Products</h2>
+      <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search products by name...">
+      </div>
       <div class="products" id="products"></div>
 
       <div class="cart">
-        <h2>Cart</h2>
+        <h2>Your Cart</h2>
         <div id="cartItems"></div>
         <p>Total: Rp <span id="total">0</span></p>
-        <button onclick="checkout()">Checkout</button>
+        <div class="checkout-form">
+          <input type="text" id="checkoutUserId" placeholder="Enter User ID for Payment">
+          <button onclick="checkout()">Send User ID for Payment</button>
+        </div>
       </div>
 
       <div class="admin">
-        <h2>Add Product (Admin)</h2>
+        <h2>Add New Product</h2>
         <input type="text" id="productName" placeholder="Product Name">
         <textarea id="productDesc" placeholder="Description"></textarea>
         <input type="number" id="productPrice" placeholder="Price">
@@ -123,6 +215,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
     import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAya-7QEtbflW7jh_EoPclFBQ43VnrKZrM",
@@ -138,9 +231,11 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    const database = getDatabase(app);
 
     let cart = [];
     let products = [];
+    let filteredProducts = [];
 
     // Auth
     window.register = async function() {
@@ -148,7 +243,7 @@
       const password = document.getElementById("password").value;
       try {
         await createUserWithEmailAndPassword(auth, email, password);
-        alert("Registered!");
+        alert("Registration successful!");
       } catch (error) {
         document.getElementById("authError").textContent = error.message;
       }
@@ -159,7 +254,7 @@
       const password = document.getElementById("password").value;
       try {
         await signInWithEmailAndPassword(auth, email, password);
-        alert("Logged in!");
+        alert("Login successful!");
       } catch (error) {
         document.getElementById("authError").textContent = error.message;
       }
@@ -181,16 +276,18 @@
     async function loadProducts() {
       const querySnapshot = await getDocs(collection(db, "products"));
       products = [];
-      querySnapshot.forEach((doc) => {
-        products.push({ id: doc.id, ...doc.data() });
+      querySnapshot.forEach((docSnap) => {
+        products.push({ id: docSnap.id, ...docSnap.data() });
       });
+      filteredProducts = [...products];
       displayProducts();
     }
 
+    // Display products
     function displayProducts() {
       const productsDiv = document.getElementById("products");
       productsDiv.innerHTML = "";
-      products.forEach(product => {
+      filteredProducts.forEach(product => {
         const productDiv = document.createElement("div");
         productDiv.className = "product";
         productDiv.innerHTML = `
@@ -203,6 +300,13 @@
         productsDiv.appendChild(productDiv);
       });
     }
+
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('input', function() {
+      const query = this.value.toLowerCase();
+      filteredProducts = products.filter(product => product.name.toLowerCase().includes(query));
+      displayProducts();
+    });
 
     // Add to cart
     window.addToCart = function(productId) {
@@ -252,37 +356,33 @@
       }
     }
 
-    // Checkout
+    // Checkout with userId input (kirim ke RTDB untuk trigger ESP32)
     window.checkout = async function() {
       if (cart.length === 0) {
-        alert("Cart is empty!");
+        alert("Your cart is empty!");
         return;
       }
-      const user = auth.currentUser;
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      const userData = userDoc.data();
+      const userId = document.getElementById("checkoutUserId").value.trim();
+      if (!userId) {
+        alert("Please enter a valid User ID!");
+        return;
+      }
       const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      if (userData.saldo < total) {
-        alert("Insufficient balance!");
-        return;
-      }
-      await updateDoc(doc(db, "users", user.uid), { saldo: increment(-total) });
-      const nota = `Nota Pembelian\nUser: ${userData.email}\nItems:\n${cart.map(item => `${item.name} x${item.quantity} - Rp ${(item.price * item.quantity).toLocaleString('id-ID')}`).join('\n')}\nTotal: Rp ${total.toLocaleString('id-ID')}\nDate: ${new Date().toLocaleString()}`;
-      await addDoc(collection(db, "notas"), { nota, userId: user.uid, timestamp: new Date() });
-      alert("Checkout successful! Nota saved.");
-      cart = [];
-      updateCartDisplay();
-      saveCart();
+
+      // Kirim ke RTDB
+      await set(ref(database, 'payment'), { userId, total, cart: JSON.stringify(cart), status: 'pending' });
+      alert("User ID sent for payment processing. Wait for ESP32 validation.");
+      // Jangan potong saldo atau simpan nota di sini
     };
 
-    // Add product (admin) - tanpa storage, gunakan Base64
+    // Add product (admin) - menggunakan Base64
     window.addProduct = async function() {
       const name = document.getElementById("productName").value;
       const desc = document.getElementById("productDesc").value;
       const price = parseFloat(document.getElementById("productPrice").value);
       const imageFile = document.getElementById("productImage").files[0];
       if (!name || !desc || !price || !imageFile) {
-        alert("All fields required!");
+        alert("All fields are required!");
         return;
       }
 
@@ -295,7 +395,7 @@
           price, 
           fotoBase64 
         });
-        alert("Product added!");
+        alert("Product added successfully!");
         loadProducts();
       };
       reader.readAsDataURL(imageFile);
